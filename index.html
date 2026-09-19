@@ -21,10 +21,14 @@
       <span id="userGreeting" class="user-greeting hidden"></span>
       <span id="lastUpdated" class="last-updated">—</span>
       <button id="weatherPill" class="weather-pill hidden" title="Fort Smith, AR"></button>
+      <button id="notifyChip" class="weather-pill" title="Toggle overdue-load alerts">🔔 Alerts: Off</button>
     </div>
   </div>
   <div class="topbar-actions">
-    <button id="userBtn" class="icon-btn" title="Your name" aria-label="Your name">
+    <button id="adminBtn" class="icon-btn hidden" title="Admin" aria-label="Admin">
+      <svg viewBox="0 0 24 24" width="19" height="19"><path fill="currentColor" d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5zm0 4.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM12 13c2 0 4.5 1 4.5 3v1h-9v-1c0-2 2.5-3 4.5-3z"/></svg>
+    </button>
+    <button id="userBtn" class="icon-btn" title="Switch user" aria-label="Switch user">
       <svg viewBox="0 0 24 24" width="19" height="19"><path fill="currentColor" d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4 0-8 2-8 5v2h16v-2c0-3-4-5-8-5z"/></svg>
     </button>
     <button id="searchBtn" class="icon-btn" title="Search" aria-label="Search">
@@ -42,6 +46,17 @@
 <nav class="tabs" id="locationTabs">
   <!-- location buttons injected here -->
 </nav>
+
+<div class="date-bar" id="dateBar">
+  <div class="date-chips" id="dateChips">
+    <!-- Yesterday / Today / Tomorrow / All chips injected here -->
+  </div>
+  <div class="date-picker-wrap">
+    <input type="date" id="datePicker" class="date-picker" aria-label="Pick a date" />
+  </div>
+</div>
+
+<div class="progress-bar" id="progressBar"></div>
 
 <main id="loadList" class="load-list">
   <div class="empty-state" id="emptyState">Loading…</div>
@@ -67,16 +82,58 @@
   </div>
 </div>
 
-<!-- Sign-in modal: also doubles as "change name" -->
+<!-- Admin sheet: Activity history + Staff roster (admin role only) -->
+<div id="adminSheet" class="sheet-overlay hidden">
+  <div class="sheet admin-sheet">
+    <div class="sheet-handle"></div>
+    <div class="admin-tabs">
+      <button id="adminTabActivity" class="admin-tab active">Activity</button>
+      <button id="adminTabStaff" class="admin-tab">Staff</button>
+    </div>
+
+    <div id="adminActivityView">
+      <div class="date-chips" id="adminDateChips"></div>
+      <div id="adminHistoryList" class="search-results"></div>
+    </div>
+
+    <div id="adminStaffView" class="hidden">
+      <div id="staffList" class="search-results"></div>
+      <button id="addStaffBtn" class="btn btn-primary add-staff-btn">+ Add Staff</button>
+    </div>
+
+    <button class="sheet-close" id="adminCloseBtn">Close</button>
+  </div>
+</div>
+
+<!-- Add/edit staff modal -->
+<div id="staffModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 id="staffModalTitle">Add Staff</h3>
+    <input id="staffNameInput" type="text" placeholder="Name" autocomplete="off" />
+    <input id="staffPinInput" type="text" inputmode="numeric" placeholder="4-8 digit PIN" autocomplete="off" />
+    <label class="staff-role-toggle">
+      <input type="checkbox" id="staffAdminCheckbox" /> Admin access
+    </label>
+    <label class="staff-role-toggle">
+      <input type="checkbox" id="staffActiveCheckbox" checked /> Active (unchecking disables their PIN)
+    </label>
+    <div id="staffModalError" class="modal-error hidden"></div>
+    <div class="modal-actions">
+      <button id="staffCancelBtn" class="btn btn-secondary">Cancel</button>
+      <button id="staffSaveBtn" class="btn btn-primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sign-in modal (PIN only — the server tells us who it belongs to) -->
 <div id="signInModal" class="modal-overlay hidden">
   <div class="modal">
-    <h3 id="signInTitle">Sign in</h3>
-    <input id="nameInput" type="text" placeholder="Your name" autocomplete="off" />
-    <input id="signInPasscodeInput" type="password" inputmode="numeric" placeholder="Passcode" autocomplete="off" />
+    <h3 id="signInTitle">Enter your PIN</h3>
+    <input id="signInPinInput" type="password" inputmode="numeric" placeholder="PIN" autocomplete="off" />
     <div id="signInError" class="modal-error hidden"></div>
     <div class="modal-actions">
       <button id="signInCancel" class="btn btn-secondary">Cancel</button>
-      <button id="signInConfirm" class="btn btn-primary">Save</button>
+      <button id="signInConfirm" class="btn btn-primary">Sign In</button>
     </div>
   </div>
 </div>
