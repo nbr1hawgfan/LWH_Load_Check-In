@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#c41230" />
+<title>Inbound Load Tracker</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icons/icon-192.png" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-title">
+    <h1>Inbound Loads</h1>
+    <span id="lastUpdated" class="last-updated">—</span>
+  </div>
+  <div class="topbar-actions">
+    <button id="refreshBtn" class="icon-btn" title="Refresh" aria-label="Refresh">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M17.65 6.35A7.958 7.958 0 0 0 12 4a8 8 0 1 0 7.75 10h-2.08A6 6 0 1 1 12 6a5.96 5.96 0 0 1 4.24 1.76L13 11h7V4z"/></svg>
+    </button>
+    <button id="reportBtn" class="icon-btn" title="Email report" aria-label="Send report">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 4-8 5-8-5V6l8 5 8-5z"/></svg>
+    </button>
+  </div>
+</header>
+
+<nav class="tabs" id="locationTabs">
+  <!-- location buttons injected here -->
+</nav>
+
+<main id="loadList" class="load-list">
+  <div class="empty-state" id="emptyState">Loading…</div>
+</main>
+
+<div id="detailSheet" class="sheet-overlay hidden">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div id="sheetContent"></div>
+    <button class="sheet-close" id="sheetCloseBtn">Close</button>
+  </div>
+</div>
+
+<div id="passcodeModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 id="passcodeTitle">Enter passcode</h3>
+    <input id="passcodeInput" type="password" inputmode="numeric" placeholder="Passcode" autocomplete="off" />
+    <div id="passcodeError" class="modal-error hidden"></div>
+    <div class="modal-actions">
+      <button id="passcodeCancel" class="btn btn-secondary">Cancel</button>
+      <button id="passcodeConfirm" class="btn btn-primary">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
