@@ -1,15 +1,15 @@
 // ---------- CONFIG ----------
-// Paste the /exec URL from your Apps Script Web App deployment here.
 const API_URL = 'https://script.google.com/macros/s/AKfycbyX6N102QHuhZoHGKIipl81DWO9lDIc-TtVm8g3_Pv2vybzKmDBjeVi4i0BdQg8dynsVw/exec';
 
-// How often to auto-refresh data (ms).
 const AUTO_REFRESH_MS = 75 * 1000;
+const WEATHER_REFRESH_MS = 15 * 60 * 1000; // weather changes slowly — 15 min is plenty
+const AUTH_STORAGE_KEY = 'inboundTrackerAuth'; // { name, passcode }
 
 // ---------- STATE ----------
 let state = {
-  locations: [],       // [{ location, loads: [...] }]
+  locations: [],
   activeLocation: null,
-  pendingAction: null   // { type: 'markArrived'|'unmarkArrived'|'sendReport', payload }
+  pendingAction: null // action to run automatically once sign-in succeeds
 };
 
 // ---------- DOM ----------
@@ -17,38 +17,221 @@ const locationTabsEl = document.getElementById('locationTabs');
 const loadListEl = document.getElementById('loadList');
 const emptyStateEl = document.getElementById('emptyState');
 const lastUpdatedEl = document.getElementById('lastUpdated');
+const userGreetingEl = document.getElementById('userGreeting');
+const weatherPillEl = document.getElementById('weatherPill');
+
 const refreshBtn = document.getElementById('refreshBtn');
 const reportBtn = document.getElementById('reportBtn');
+const userBtn = document.getElementById('userBtn');
+const searchBtn = document.getElementById('searchBtn');
 
 const detailSheet = document.getElementById('detailSheet');
 const sheetContent = document.getElementById('sheetContent');
 const sheetCloseBtn = document.getElementById('sheetCloseBtn');
 
-const passcodeModal = document.getElementById('passcodeModal');
-const passcodeTitle = document.getElementById('passcodeTitle');
-const passcodeInput = document.getElementById('passcodeInput');
-const passcodeError = document.getElementById('passcodeError');
-const passcodeCancel = document.getElementById('passcodeCancel');
-const passcodeConfirm = document.getElementById('passcodeConfirm');
+const searchSheet = document.getElementById('searchSheet');
+const searchInput = document.getElementById('searchInput');
+const searchResultsEl = document.getElementById('searchResults');
+const searchCloseBtn = document.getElementById('searchCloseBtn');
+
+const signInModal = document.getElementById('signInModal');
+const signInTitle = document.getElementById('signInTitle');
+const nameInput = document.getElementById('nameInput');
+const signInPasscodeInput = document.getElementById('signInPasscodeInput');
+const signInError = document.getElementById('signInError');
+const signInCancel = document.getElementById('signInCancel');
+const signInConfirm = document.getElementById('signInConfirm');
 
 const toastEl = document.getElementById('toast');
 
 // ---------- INIT ----------
 refreshBtn.addEventListener('click', () => loadData(true));
-reportBtn.addEventListener('click', () => requestPasscodeFor({ type: 'sendReport' }, 'Send report — enter passcode'));
+reportBtn.addEventListener('click', () => runGatedAction({ type: 'sendReport' }));
+userBtn.addEventListener('click', () => openSignInModal({ type: 'noop' }, true));
+searchBtn.addEventListener('click', openSearchSheet);
+
 sheetCloseBtn.addEventListener('click', closeSheet);
 detailSheet.addEventListener('click', (e) => { if (e.target === detailSheet) closeSheet(); });
-passcodeCancel.addEventListener('click', closePasscodeModal);
-passcodeConfirm.addEventListener('click', confirmPasscode);
-passcodeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') confirmPasscode(); });
 
+searchCloseBtn.addEventListener('click', closeSearchSheet);
+searchSheet.addEventListener('click', (e) => { if (e.target === searchSheet) closeSearchSheet(); });
+searchInput.addEventListener('input', debounce(runSearch, 300));
+
+signInCancel.addEventListener('click', closeSignInModal);
+signInConfirm.addEventListener('click', confirmSignIn);
+signInPasscodeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') confirmSignIn(); });
+
+renderGreeting();
 loadData(false);
+loadWeather();
 setInterval(() => loadData(true), AUTO_REFRESH_MS);
+setInterval(loadWeather, WEATHER_REFRESH_MS);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('service-worker.js').catch(() => {});
   });
+}
+
+// ---------- AUTH (sign in once per device) ----------
+function getAuth() {
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveAuth(auth) {
+  try {
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
+  } catch (e) { /* ignore — worst case, they sign in again next time */ }
+}
+
+function clearAuth() {
+  try { localStorage.removeItem(AUTH_STORAGE_KEY); } catch (e) {}
+}
+
+function renderGreeting() {
+  const auth = getAuth();
+  if (auth && auth.name) {
+    userGreetingEl.textContent = 'Hi, ' + auth.name;
+    userGreetingEl.classList.remove('hidden');
+  } else {
+    userGreetingEl.textContent = '';
+    userGreetingEl.classList.add('hidden');
+  }
+}
+
+/**
+ * Runs a passcode-gated action (mark arrived, undo, send report).
+ * If this device already has saved credentials, it fires immediately —
+ * no modal, no typing, so it doesn't slow anyone down. Only asks for
+ * name + passcode the first time, or again if the server ever rejects
+ * a saved passcode (e.g. it was changed).
+ */
+async function runGatedAction(action) {
+  const auth = getAuth();
+  if (!auth) {
+    openSignInModal(action, false);
+    return;
+  }
+  await performAction(action, auth);
+}
+
+async function performAction(action, auth) {
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: action.type,
+        passcode: auth.passcode,
+        markedBy: auth.name,
+        ...action.payload
+      })
+    });
+    const json = await res.json();
+
+    if (!json.ok) {
+      // Saved passcode no longer valid — clear it and ask again.
+      clearAuth();
+      renderGreeting();
+      showToast('Passcode no longer valid — please sign in again');
+      openSignInModal(action, false);
+      return;
+    }
+
+    closeSheet();
+    if (action.type === 'sendReport') {
+      showToast('Report sent');
+    } else {
+      showToast(action.type === 'markArrived' ? 'Marked arrived' : 'Arrival undone');
+      await loadData(false);
+    }
+  } catch (err) {
+    showToast('Network error — try again');
+  }
+}
+
+function openSignInModal(action, isEditingProfile) {
+  state.pendingAction = action;
+  const auth = getAuth();
+  signInTitle.textContent = isEditingProfile ? 'Your name' : 'Sign in once — we\'ll remember this device';
+  nameInput.value = (auth && auth.name) || '';
+  signInPasscodeInput.value = isEditingProfile && auth ? auth.passcode : '';
+  signInError.classList.add('hidden');
+  signInModal.classList.remove('hidden');
+  setTimeout(() => (nameInput.value ? signInPasscodeInput : nameInput).focus(), 50);
+}
+
+function closeSignInModal() {
+  signInModal.classList.add('hidden');
+  state.pendingAction = null;
+}
+
+async function confirmSignIn() {
+  const name = nameInput.value.trim();
+  const passcode = signInPasscodeInput.value.trim();
+
+  if (!name) {
+    signInError.textContent = 'Enter your name';
+    signInError.classList.remove('hidden');
+    return;
+  }
+  if (!passcode) {
+    signInError.textContent = 'Enter the passcode';
+    signInError.classList.remove('hidden');
+    return;
+  }
+
+  signInConfirm.disabled = true;
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'verifyPasscode', passcode })
+    });
+    const json = await res.json();
+
+    if (!json.ok) {
+      signInError.textContent = 'Incorrect passcode';
+      signInError.classList.remove('hidden');
+      signInConfirm.disabled = false;
+      return;
+    }
+
+    const auth = { name, passcode };
+    saveAuth(auth);
+    renderGreeting();
+
+    const action = state.pendingAction;
+    closeSignInModal();
+
+    if (action && action.type !== 'noop') {
+      await performAction(action, auth);
+    } else {
+      showToast('Saved');
+    }
+  } catch (err) {
+    signInError.textContent = 'Network error — try again';
+    signInError.classList.remove('hidden');
+  } finally {
+    signInConfirm.disabled = false;
+  }
+}
+
+// ---------- WEATHER ----------
+async function loadWeather() {
+  try {
+    const res = await fetch(API_URL + '?action=weather', { cache: 'no-store' });
+    const json = await res.json();
+    if (!json.ok) return;
+
+    weatherPillEl.textContent = json.emoji + ' ' + json.tempF + '°F · Fort Smith';
+    weatherPillEl.classList.remove('hidden');
+  } catch (err) {
+    // Weather is a nice-to-have — fail silently.
+  }
 }
 
 // ---------- DATA LOADING ----------
@@ -120,9 +303,7 @@ function renderLoadList() {
 }
 
 function compareTimeStrings(a, b) {
-  const pa = parseTimeToMinutes(a);
-  const pb = parseTimeToMinutes(b);
-  return pa - pb;
+  return parseTimeToMinutes(a) - parseTimeToMinutes(b);
 }
 
 function parseTimeToMinutes(str) {
@@ -188,19 +369,28 @@ function renderLoadCard(load) {
     const undoBtn = document.createElement('button');
     undoBtn.className = 'btn btn-unarrive';
     undoBtn.textContent = 'Undo (arrived ' + formatArrivedAt(load.arrivedAt) + ')';
-    undoBtn.addEventListener('click', () => requestPasscodeFor(
-      { type: 'unmarkArrived', payload: { location: load.location, bol: load.inboundBol } },
-      'Undo arrival — enter passcode'
+    undoBtn.addEventListener('click', () => runGatedAction(
+      { type: 'unmarkArrived', payload: { location: load.location, bol: load.inboundBol } }
     ));
     actions.appendChild(undoBtn);
   } else {
     const arriveBtn = document.createElement('button');
     arriveBtn.className = 'btn btn-arrive';
     arriveBtn.textContent = 'Mark Arrived';
-    arriveBtn.addEventListener('click', () => requestPasscodeFor(
-      { type: 'markArrived', payload: { location: load.location, bol: load.inboundBol } },
-      'Mark arrived — enter passcode'
-    ));
+    arriveBtn.addEventListener('click', () => runGatedAction({
+      type: 'markArrived',
+      payload: {
+        location: load.location,
+        bol: load.inboundBol,
+        carrier: load.carrier,
+        project: load.project,
+        palletGroupId: load.palletGroupId,
+        pallets: load.pallets,
+        inboundScheduled: load.inboundScheduled,
+        appointmentTime: load.appointmentTime,
+        inboundNotes: load.inboundNotes
+      }
+    }));
     actions.appendChild(arriveBtn);
   }
 
@@ -212,6 +402,17 @@ function formatArrivedAt(iso) {
   if (!iso) return '';
   try {
     return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  } catch (e) {
+    return '';
+  }
+}
+
+function formatArrivedAtFull(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString([], { month: 'numeric', day: 'numeric' }) + ' ' +
+      d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   } catch (e) {
     return '';
   }
@@ -250,57 +451,71 @@ function closeSheet() {
   detailSheet.classList.add('hidden');
 }
 
-// ---------- PASSCODE MODAL ----------
-function requestPasscodeFor(action, title) {
-  state.pendingAction = action;
-  passcodeTitle.textContent = title;
-  passcodeInput.value = '';
-  passcodeError.classList.add('hidden');
-  passcodeModal.classList.remove('hidden');
-  setTimeout(() => passcodeInput.focus(), 50);
+// ---------- SEARCH ----------
+function openSearchSheet() {
+  searchInput.value = '';
+  searchResultsEl.innerHTML = '<div class="search-empty">Type a BOL number or carrier name.</div>';
+  searchSheet.classList.remove('hidden');
+  setTimeout(() => searchInput.focus(), 100);
 }
 
-function closePasscodeModal() {
-  passcodeModal.classList.add('hidden');
-  state.pendingAction = null;
+function closeSearchSheet() {
+  searchSheet.classList.add('hidden');
 }
 
-async function confirmPasscode() {
-  const passcode = passcodeInput.value.trim();
-  if (!passcode) return;
-
-  const action = state.pendingAction;
-  if (!action) return closePasscodeModal();
-
-  passcodeConfirm.disabled = true;
-  try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: action.type, passcode, ...action.payload })
-    });
-    const json = await res.json();
-    if (!json.ok) {
-      passcodeError.textContent = json.error || 'Something went wrong';
-      passcodeError.classList.remove('hidden');
-      passcodeConfirm.disabled = false;
-      return;
-    }
-
-    closePasscodeModal();
-    closeSheet();
-
-    if (action.type === 'sendReport') {
-      showToast('Report sent');
-    } else {
-      showToast(action.type === 'markArrived' ? 'Marked arrived' : 'Arrival undone');
-      await loadData(false);
-    }
-  } catch (err) {
-    passcodeError.textContent = 'Network error — try again';
-    passcodeError.classList.remove('hidden');
-  } finally {
-    passcodeConfirm.disabled = false;
+async function runSearch() {
+  const q = searchInput.value.trim();
+  if (!q) {
+    searchResultsEl.innerHTML = '<div class="search-empty">Type a BOL number or carrier name.</div>';
+    return;
   }
+
+  searchResultsEl.innerHTML = '<div class="search-empty">Searching…</div>';
+
+  try {
+    const res = await fetch(API_URL + '?action=search&q=' + encodeURIComponent(q), { cache: 'no-store' });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error);
+
+    renderSearchResults(json.results);
+  } catch (err) {
+    searchResultsEl.innerHTML = '<div class="search-empty">Search failed — check connection.</div>';
+  }
+}
+
+function renderSearchResults(results) {
+  if (!results || results.length === 0) {
+    searchResultsEl.innerHTML = '<div class="search-empty">No matching loads found.</div>';
+    return;
+  }
+
+  searchResultsEl.innerHTML = '';
+  results.forEach((r) => {
+    const item = document.createElement('div');
+    item.className = 'search-result';
+
+    const statusText = r.arrived
+      ? 'Arrived ' + formatArrivedAtFull(r.arrivedAt) + (r.markedBy ? ' by ' + r.markedBy : '')
+      : 'Not yet arrived';
+
+    item.innerHTML = `
+      <div class="search-result-top">
+        <span>BOL ${escapeHtml(r.inboundBol)}</span>
+        <span>${escapeHtml(r.location)}</span>
+      </div>
+      <div class="search-result-meta">${escapeHtml(r.carrier || 'Carrier TBD')} · Scheduled ${escapeHtml(r.inboundScheduled || '—')} ${escapeHtml(r.appointmentTime || '')}</div>
+      <div class="search-result-status ${r.arrived ? 'arrived' : 'pending'}">${escapeHtml(statusText)}</div>
+    `;
+    searchResultsEl.appendChild(item);
+  });
+}
+
+function debounce(fn, ms) {
+  let timer = null;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  };
 }
 
 // ---------- TOAST ----------
