@@ -125,6 +125,18 @@
   </div>
 </div>
 
+<!-- Dock assignment (optional) — shown right before Mark Arrived commits -->
+<div id="dockModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3>Assign a Dock (optional)</h3>
+    <input id="dockInput" type="text" placeholder="Dock # or name" autocomplete="off" />
+    <div class="modal-actions">
+      <button id="dockSkipBtn" class="btn btn-secondary">Skip</button>
+      <button id="dockConfirmBtn" class="btn btn-primary">Mark Arrived</button>
+    </div>
+  </div>
+</div>
+
 <!-- Sign-in modal (PIN only — the server tells us who it belongs to) -->
 <div id="signInModal" class="modal-overlay hidden">
   <div class="modal">

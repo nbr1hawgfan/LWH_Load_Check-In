@@ -33,6 +33,12 @@ const brokerCodeInput = document.getElementById('brokerCodeInput');
 const signInError = document.getElementById('signInError');
 const signInConfirm = document.getElementById('signInConfirm');
 
+const searchBtn = document.getElementById('searchBtn');
+const searchSheet = document.getElementById('searchSheet');
+const searchInput = document.getElementById('searchInput');
+const searchResultsEl = document.getElementById('searchResults');
+const searchCloseBtn = document.getElementById('searchCloseBtn');
+
 const actionModal = document.getElementById('actionModal');
 const actionModalTitle = document.getElementById('actionModalTitle');
 const actionModalSubtitle = document.getElementById('actionModalSubtitle');
@@ -498,6 +504,90 @@ async function runBrokerAction(mode, load, extra) {
   }
 }
 
+// ---------- SEARCH ----------
+// Looks up any BOL/carrier across every location and every day —
+// including already-delivered loads — same as the gate crew app's
+// search, since the broker isn't restricted to just what's pending today.
+function openSearchSheet() {
+  searchInput.value = '';
+  searchResultsEl.innerHTML = '<div class="search-empty">Type a BOL number or carrier name.</div>';
+  searchSheet.classList.remove('hidden');
+  setTimeout(function () { searchInput.focus(); }, 100);
+}
+
+function closeSearchSheet() {
+  searchSheet.classList.add('hidden');
+}
+
+async function runSearch() {
+  const auth = getBrokerAuth();
+  const q = searchInput.value.trim();
+  if (!q) {
+    searchResultsEl.innerHTML = '<div class="search-empty">Type a BOL number or carrier name.</div>';
+    return;
+  }
+  if (!auth) return;
+
+  searchResultsEl.innerHTML = '<div class="search-empty">Searching…</div>';
+
+  try {
+    const url = API_URL + '?action=brokerSearch&code=' + encodeURIComponent(auth.code) +
+      '&q=' + encodeURIComponent(q);
+    const res = await fetch(url, { cache: 'no-store' });
+    const data = await res.json();
+    if (!data.ok) {
+      searchResultsEl.innerHTML = '<div class="search-empty">' + escapeHtml(data.error || 'Search failed') + '</div>';
+      return;
+    }
+    renderSearchResults(data.results);
+  } catch (err) {
+    searchResultsEl.innerHTML = '<div class="search-empty">Could not reach the server.</div>';
+  }
+}
+
+function renderSearchResults(results) {
+  if (!results || results.length === 0) {
+    searchResultsEl.innerHTML = '<div class="search-empty">No matching loads found.</div>';
+    return;
+  }
+
+  searchResultsEl.innerHTML = '';
+  results.forEach(function (r) {
+    const item = document.createElement('div');
+    item.className = 'search-result';
+
+    let statusText;
+    if (r.arrived) {
+      statusText = 'Delivered ' + formatArrivedAt(r.arrivedAt) + (r.arrivedDock ? ' · Dock ' + r.arrivedDock : '');
+    } else if (r.change && r.change.type) {
+      const labels = { RESCHEDULED: 'Rescheduled', DELAYED: 'Delayed', CANCELLED: 'Cancelled' };
+      statusText = labels[r.change.type] || r.change.type;
+    } else {
+      statusText = 'Not yet arrived';
+    }
+
+    item.innerHTML =
+      '<div class="search-result-top">' +
+        '<span>BOL ' + escapeHtml(r.inboundBol) + '</span>' +
+        '<span>' + escapeHtml(r.location) + '</span>' +
+      '</div>' +
+      '<div class="search-result-meta">' + escapeHtml(r.carrier || 'Carrier TBD') + ' · Scheduled ' +
+        escapeHtml(r.inboundScheduled || '—') + ' ' + escapeHtml(r.appointmentTime || '') + '</div>' +
+      '<div class="search-result-status ' + (r.arrived ? 'arrived' : 'pending') + '">' + escapeHtml(statusText) + '</div>';
+
+    searchResultsEl.appendChild(item);
+  });
+}
+
+function debounce(fn, ms) {
+  let timer = null;
+  return function () {
+    const args = arguments;
+    clearTimeout(timer);
+    timer = setTimeout(function () { fn.apply(null, args); }, ms);
+  };
+}
+
 // ---------- MISC ----------
 function showToast(msg) {
   toastEl.textContent = msg;
@@ -515,6 +605,10 @@ function escapeHtml(str) {
 }
 
 refreshBtn.addEventListener('click', loadData);
+searchBtn.addEventListener('click', openSearchSheet);
+searchCloseBtn.addEventListener('click', closeSearchSheet);
+searchSheet.addEventListener('click', function (e) { if (e.target === searchSheet) closeSearchSheet(); });
+searchInput.addEventListener('input', debounce(runSearch, 350));
 
 // ---------- INIT ----------
 buildDateChips();

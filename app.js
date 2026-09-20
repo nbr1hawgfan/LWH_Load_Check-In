@@ -16,7 +16,8 @@ let state = {
   pendingAction: null, // action to run automatically once sign-in succeeds
   adminDate: toApiDateString(new Date()),
   adminView: 'activity',
-  editingStaffOriginalName: null
+  editingStaffOriginalName: null,
+  pendingDockLoad: null // the load waiting on the dock modal before Mark Arrived fires
 };
 
 // ---------- DOM ----------
@@ -73,6 +74,11 @@ const signInError = document.getElementById('signInError');
 const signInCancel = document.getElementById('signInCancel');
 const signInConfirm = document.getElementById('signInConfirm');
 
+const dockModal = document.getElementById('dockModal');
+const dockInput = document.getElementById('dockInput');
+const dockSkipBtn = document.getElementById('dockSkipBtn');
+const dockConfirmBtn = document.getElementById('dockConfirmBtn');
+
 const toastEl = document.getElementById('toast');
 
 // ---------- INIT ----------
@@ -89,6 +95,10 @@ detailSheet.addEventListener('click', (e) => { if (e.target === detailSheet) clo
 
 searchCloseBtn.addEventListener('click', closeSearchSheet);
 searchSheet.addEventListener('click', (e) => { if (e.target === searchSheet) closeSearchSheet(); });
+
+dockSkipBtn.addEventListener('click', () => confirmMarkArrived(''));
+dockConfirmBtn.addEventListener('click', () => confirmMarkArrived(dockInput.value.trim()));
+dockModal.addEventListener('click', (e) => { if (e.target === dockModal) closeDockModal(); });
 searchInput.addEventListener('input', debounce(runSearch, 300));
 
 adminCloseBtn.addEventListener('click', closeAdminSheet);
@@ -240,6 +250,43 @@ function switchUser() {
  * Only asks for a PIN the first time, or again if the server ever
  * rejects a saved PIN (e.g. it was deactivated or changed).
  */
+// ---------- DOCK ASSIGNMENT ----------
+// A quick, optional stop before Mark Arrived actually fires — free text so
+// it works the same at a 2-door location and a 175-dock one. "Skip" keeps
+// this as fast as before for locations that don't care about dock numbers.
+function openDockModal(load) {
+  state.pendingDockLoad = load;
+  dockInput.value = '';
+  dockModal.classList.remove('hidden');
+  setTimeout(() => dockInput.focus(), 50);
+}
+
+function closeDockModal() {
+  dockModal.classList.add('hidden');
+  state.pendingDockLoad = null;
+}
+
+function confirmMarkArrived(dock) {
+  const load = state.pendingDockLoad;
+  if (!load) return;
+  closeDockModal();
+  runGatedAction({
+    type: 'markArrived',
+    payload: {
+      location: load.location,
+      bol: load.inboundBol,
+      carrier: load.carrier,
+      project: load.project,
+      palletGroupId: load.palletGroupId,
+      pallets: load.pallets,
+      inboundScheduled: load.inboundScheduled,
+      appointmentTime: load.appointmentTime,
+      inboundNotes: load.inboundNotes,
+      dock: dock
+    }
+  });
+}
+
 async function runGatedAction(action) {
   const auth = getAuth();
   if (!auth) {
@@ -314,10 +361,12 @@ function applyOptimisticUpdate(action, auth) {
         load.arrived = true;
         load.arrivedAt = new Date().toISOString();
         load.markedBy = auth.name;
+        load.arrivedDock = action.payload.dock || null;
       } else {
         load.arrived = false;
         load.arrivedAt = null;
         load.markedBy = null;
+        load.arrivedDock = null;
       }
     });
   });
@@ -731,6 +780,13 @@ function renderLoadCard(load) {
     card.appendChild(changeDetail);
   }
 
+  if (load.arrived && load.arrivedDock) {
+    const dockChip = document.createElement('div');
+    dockChip.className = 'dock-chip';
+    dockChip.textContent = 'Dock ' + load.arrivedDock;
+    card.appendChild(dockChip);
+  }
+
   if (load.inboundNotes) {
     const notes = document.createElement('div');
     notes.className = 'load-notes';
@@ -753,20 +809,7 @@ function renderLoadCard(load) {
     const arriveBtn = document.createElement('button');
     arriveBtn.className = 'btn btn-arrive';
     arriveBtn.textContent = 'Mark Arrived';
-    arriveBtn.addEventListener('click', () => runGatedAction({
-      type: 'markArrived',
-      payload: {
-        location: load.location,
-        bol: load.inboundBol,
-        carrier: load.carrier,
-        project: load.project,
-        palletGroupId: load.palletGroupId,
-        pallets: load.pallets,
-        inboundScheduled: load.inboundScheduled,
-        appointmentTime: load.appointmentTime,
-        inboundNotes: load.inboundNotes
-      }
-    }));
+    arriveBtn.addEventListener('click', () => openDockModal(load));
     actions.appendChild(arriveBtn);
   }
 
@@ -834,6 +877,7 @@ function openDetailSheet(load) {
     ${detailRow('Warehouse Address', load.warehouseAddress)}
     ${load.inboundNotes ? detailRow('Notes', load.inboundNotes) : ''}
     ${load.markedBy ? detailRow('Marked By', load.markedBy) : ''}
+    ${load.arrivedDock ? detailRow('Dock', load.arrivedDock) : ''}
     ${load.change ? detailRow('Broker Update', formatChangeDetailText(load.change)) : ''}
   `;
   detailSheet.classList.remove('hidden');
@@ -891,7 +935,7 @@ function renderSearchResults(results) {
     item.className = 'search-result';
 
     const statusText = r.arrived
-      ? 'Arrived ' + formatArrivedAtFull(r.arrivedAt) + (r.markedBy ? ' by ' + r.markedBy : '')
+      ? 'Arrived ' + formatArrivedAtFull(r.arrivedAt) + (r.markedBy ? ' by ' + r.markedBy : '') + (r.arrivedDock ? ' · Dock ' + r.arrivedDock : '')
       : 'Not yet arrived';
 
     item.innerHTML = `
