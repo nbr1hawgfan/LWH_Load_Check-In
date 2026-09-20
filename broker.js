@@ -3,8 +3,11 @@
 // if you ever redeploy to a new /exec URL.
 const API_URL = 'https://script.google.com/macros/s/AKfycbyX6N102QHuhZoHGKIipl81DWO9lDIc-TtVm8g3_Pv2vybzKmDBjeVi4i0BdQg8dynsVw/exec';
 
-const AUTO_REFRESH_MS = 60 * 1000;
+const AUTO_REFRESH_MS = 2 * 60 * 1000;
 const BROKER_AUTH_KEY = 'inboundTrackerBrokerAuth'; // { name, code }
+// Shared Drive folder of signed delivery receipts — same link as the
+// warehouse app, opened as a plain link (no Drive API wired up here).
+const RECEIPTS_FOLDER_URL = 'https://drive.google.com/drive/folders/14DWq8DSOMLxWztqyz8QwgpJrNpHVZn50?usp=sharing';
 
 // ---------- STATE ----------
 let state = {
@@ -27,6 +30,7 @@ const brokerGreetingEl = document.getElementById('brokerGreeting');
 
 const refreshBtn = document.getElementById('refreshBtn');
 const signOutBtn = document.getElementById('signOutBtn');
+const receiptsBtn = document.getElementById('receiptsBtn');
 
 const signInModal = document.getElementById('signInModal');
 const brokerNameInput = document.getElementById('brokerNameInput');
@@ -289,7 +293,7 @@ function renderLoadList() {
   emptyStateEl.classList.add('hidden');
 
   // Straight chronological order — all the 7am loads, then all the 8am
-  // loads, and so on (same as the gate crew app), regardless of
+  // loads, and so on (same as the warehouse team app), regardless of
   // location, delivered/pending, or flagged status. Use the location
   // tabs above to narrow to one warehouse if that's more useful.
   visible
@@ -326,7 +330,7 @@ function renderLoadCard(load) {
     : (change ? renderChangeBadge(change) : '');
   const detail = (!load.arrived && change) ? renderChangeDetail(change) : '';
 
-  const messageChipHtml = '<button class="message-chip" type="button" title="Messages">💬' +
+  const messageChipHtml = '<button class="message-chip" type="button" title="Messages">💬 Message' +
     (load.messageCount > 0 ? ' <span>' + load.messageCount + '</span>' : '') + '</button>';
 
   card.innerHTML =
@@ -587,7 +591,7 @@ function renderMessagesList(messages) {
   messagesList.innerHTML = messages.map(function (m) {
     return '<div class="message-bubble ' + (m.senderType === 'broker' ? 'from-broker' : 'from-staff') + '">' +
       '<div class="message-meta">' + escapeHtml(m.sender || (m.senderType === 'broker' ? 'Broker' : 'Staff')) + ' · ' + formatArrivedAtFull(m.timestamp) + '</div>' +
-      '<div class="message-text">' + escapeHtml(m.message) + '</div>' +
+      '<div class="message-text">' + linkifyMessage(m.message) + '</div>' +
     '</div>';
   }).join('');
   messagesList.scrollTop = messagesList.scrollHeight;
@@ -636,7 +640,7 @@ async function sendMessageFromInput() {
 
 // ---------- SEARCH ----------
 // Looks up any BOL/carrier across every location and every day —
-// including already-delivered loads — same as the gate crew app's
+// including already-delivered loads — same as the warehouse team app's
 // search, since the broker isn't restricted to just what's pending today.
 function openSearchSheet() {
   searchInput.value = '';
@@ -734,7 +738,20 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+// Turns a pasted link (e.g. a Google Drive photo link) into a tappable
+// link instead of dead text — the message itself stays plain text/HTML-
+// escaped, only recognized URLs get wrapped in an anchor.
+function linkifyMessage(text) {
+  const escaped = escapeHtml(text);
+  return escaped.replace(/(https?:\/\/[^\s<]+)/g, function (url) {
+    const clean = url.replace(/[),.]+$/, '');
+    const trailing = url.slice(clean.length);
+    return '<a href="' + clean + '" target="_blank" rel="noopener">' + clean + '</a>' + trailing;
+  });
+}
+
 refreshBtn.addEventListener('click', loadData);
+receiptsBtn.addEventListener('click', function () { window.open(RECEIPTS_FOLDER_URL, '_blank', 'noopener'); });
 searchBtn.addEventListener('click', openSearchSheet);
 searchCloseBtn.addEventListener('click', closeSearchSheet);
 searchSheet.addEventListener('click', function (e) { if (e.target === searchSheet) closeSearchSheet(); });

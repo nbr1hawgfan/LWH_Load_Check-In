@@ -1,8 +1,12 @@
 // ---------- CONFIG ----------
 const API_URL = 'https://script.google.com/macros/s/AKfycbyX6N102QHuhZoHGKIipl81DWO9lDIc-TtVm8g3_Pv2vybzKmDBjeVi4i0BdQg8dynsVw/exec';
 
-const AUTO_REFRESH_MS = 75 * 1000;
+const AUTO_REFRESH_MS = 2 * 60 * 1000;
 const WEATHER_REFRESH_MS = 15 * 60 * 1000; // weather changes slowly — 15 min is plenty
+// Shared Drive folder of signed delivery receipts — the receipts icon
+// just opens this link in a new tab, nothing fancier (no Drive API wired
+// up, so no in-app file listing).
+const RECEIPTS_FOLDER_URL = 'https://drive.google.com/drive/folders/14DWq8DSOMLxWztqyz8QwgpJrNpHVZn50?usp=sharing';
 const AUTH_STORAGE_KEY = 'inboundTrackerAuth';        // { pin, name, role }
 const QUEUE_STORAGE_KEY = 'inboundTrackerQueue';      // [{ action, authPin, queuedAt }]
 const NOTIFY_STORAGE_KEY = 'inboundTrackerNotifyOn';  // 'true' | 'false'
@@ -38,6 +42,7 @@ const reportBtn = document.getElementById('reportBtn');
 const userBtn = document.getElementById('userBtn');
 const searchBtn = document.getElementById('searchBtn');
 const adminBtn = document.getElementById('adminBtn');
+const receiptsBtn = document.getElementById('receiptsBtn');
 
 const detailSheet = document.getElementById('detailSheet');
 const sheetContent = document.getElementById('sheetContent');
@@ -96,6 +101,7 @@ reportBtn.addEventListener('click', () => runGatedAction({ type: 'sendReport', p
 userBtn.addEventListener('click', switchUser);
 searchBtn.addEventListener('click', openSearchSheet);
 adminBtn.addEventListener('click', openAdminSheet);
+receiptsBtn.addEventListener('click', () => window.open(RECEIPTS_FOLDER_URL, '_blank', 'noopener'));
 datePickerEl.addEventListener('change', onDatePicked);
 notifyChipEl.addEventListener('click', toggleNotifications);
 
@@ -345,7 +351,7 @@ async function performAction(action, auth) {
     return json;
   } catch (err) {
     // Likely offline (spotty dock wifi). For check-in actions, queue it
-    // and update the screen optimistically so the gate crew isn't blocked;
+    // and update the screen optimistically so the warehouse team isn't blocked;
     // it'll sync automatically once the connection comes back. Admin
     // actions (staff/history) just fail with a clear message instead —
     // those aren't worth the complexity of queuing.
@@ -777,7 +783,7 @@ function renderLoadCard(load) {
 
   const messageBtn = document.createElement('button');
   messageBtn.className = 'message-chip';
-  messageBtn.innerHTML = '💬' + (load.messageCount > 0 ? ' <span>' + load.messageCount + '</span>' : '');
+  messageBtn.innerHTML = '💬 Message' + (load.messageCount > 0 ? ' <span>' + load.messageCount + '</span>' : '');
   messageBtn.title = 'Messages';
   messageBtn.addEventListener('click', (e) => { e.stopPropagation(); openMessagesSheet(load); });
   topRight.appendChild(messageBtn);
@@ -959,10 +965,22 @@ function renderMessagesList(messages) {
   messagesList.innerHTML = messages.map((m) => `
     <div class="message-bubble ${m.senderType === 'broker' ? 'from-broker' : 'from-staff'}">
       <div class="message-meta">${escapeHtml(m.sender || (m.senderType === 'broker' ? 'Broker' : 'Staff'))} · ${formatArrivedAtFull(m.timestamp)}</div>
-      <div class="message-text">${escapeHtml(m.message)}</div>
+      <div class="message-text">${linkifyMessage(m.message)}</div>
     </div>
   `).join('');
   messagesList.scrollTop = messagesList.scrollHeight;
+}
+
+// Turns a pasted link (e.g. a Google Drive photo link) into a tappable
+// link instead of dead text — the message itself stays plain text/HTML-
+// escaped, only recognized URLs get wrapped in an anchor.
+function linkifyMessage(text) {
+  const escaped = escapeHtml(text);
+  return escaped.replace(/(https?:\/\/[^\s<]+)/g, (url) => {
+    const clean = url.replace(/[),.]+$/, '');
+    const trailing = url.slice(clean.length);
+    return `<a href="${clean}" target="_blank" rel="noopener">${clean}</a>${trailing}`;
+  });
 }
 
 async function sendMessageFromInput() {
