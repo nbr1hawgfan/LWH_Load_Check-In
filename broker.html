@@ -35,8 +35,14 @@
 <div class="broker-banner">
   Flag a schedule change below — the warehouse sees it right away. This
   doesn't move the load off today's list; it just adds a note for the
-  warehouse crew until they update the master schedule.
+  gate crew until they update the master schedule. On Today/Tomorrow,
+  checked-in loads also show up here as "Delivered" the moment the gate
+  crew marks them arrived.
 </div>
+
+<nav class="tabs" id="locationTabs">
+  <!-- "All Locations" + one tab per warehouse location injected here -->
+</nav>
 
 <div class="date-bar" id="dateBar">
   <div class="date-chips" id="dateChips">
@@ -64,7 +70,7 @@
     </div>
     <div id="actionNotesField">
       <label class="field-label">Notes (optional)</label>
-      <textarea id="actionNotesInput" class="modal-like-input" rows="2" placeholder="Anything the warehouse crew should know"></textarea>
+      <textarea id="actionNotesInput" class="modal-like-input" rows="2" placeholder="Anything the gate crew should know"></textarea>
     </div>
 
     <div id="actionModalError" class="modal-error hidden"></div>

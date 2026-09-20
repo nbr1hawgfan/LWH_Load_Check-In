@@ -9,12 +9,15 @@ const BROKER_AUTH_KEY = 'inboundTrackerBrokerAuth'; // { name, code }
 // ---------- STATE ----------
 let state = {
   loads: [],
+  locations: [],  // unique location names seen in the last load, in order
+  activeLocation: 'ALL', // 'ALL' or one location name
   selectedDate: toApiDateString(new Date()), // 'MM/dd/yyyy' or 'ALL'
   actionMode: null,     // 'reschedule' | 'delay' | 'cancel'
   actionLoad: null       // the load object the open action modal targets
 };
 
 // ---------- DOM ----------
+const locationTabsEl = document.getElementById('locationTabs');
 const dateChipsEl = document.getElementById('dateChips');
 const loadListEl = document.getElementById('loadList');
 const emptyStateEl = document.getElementById('emptyState');
@@ -44,6 +47,17 @@ const actionCancelBtn = document.getElementById('actionCancelBtn');
 const actionConfirmBtn = document.getElementById('actionConfirmBtn');
 
 const toastEl = document.getElementById('toast');
+
+// ---------- LAYOUT ----------
+// Measures the actual topbar/tabs height so the sticky date-bar below
+// them lines up correctly (same trick as the main app — avoids hardcoded
+// pixel offsets that break if the topbar ever wraps to another line).
+function updateStickyOffsets() {
+  const topbarEl = document.querySelector('.topbar');
+  const tabsEl = document.querySelector('.tabs');
+  if (topbarEl) document.documentElement.style.setProperty('--topbar-h', topbarEl.offsetHeight + 'px');
+  if (tabsEl) document.documentElement.style.setProperty('--tabs-h', tabsEl.offsetHeight + 'px');
+}
 
 // ---------- DATE HELPERS ----------
 function pad2(n) { return String(n).padStart(2, '0'); }
@@ -77,6 +91,39 @@ function buildDateChips() {
     });
     dateChipsEl.appendChild(btn);
   });
+}
+
+// ---------- LOCATION TABS ----------
+// On a busy day (14-28 loads per location, times three), scrolling
+// through everything to find one location's loads gets old fast — these
+// tabs let the broker narrow to just the location they're updating.
+function renderLocationTabs() {
+  locationTabsEl.innerHTML = '';
+
+  const allBtn = document.createElement('button');
+  allBtn.className = 'tab-btn' + (state.activeLocation === 'ALL' ? ' active' : '');
+  allBtn.textContent = 'All Locations';
+  allBtn.addEventListener('click', function () {
+    state.activeLocation = 'ALL';
+    renderLocationTabs();
+    renderLoadList();
+  });
+  locationTabsEl.appendChild(allBtn);
+
+  state.locations.forEach(function (loc) {
+    const pendingCount = state.loads.filter(function (l) { return l.location === loc && !l.arrived; }).length;
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn' + (state.activeLocation === loc ? ' active' : '');
+    btn.textContent = loc + (pendingCount > 0 ? ' (' + pendingCount + ')' : '');
+    btn.addEventListener('click', function () {
+      state.activeLocation = loc;
+      renderLocationTabs();
+      renderLoadList();
+    });
+    locationTabsEl.appendChild(btn);
+  });
+
+  updateStickyOffsets();
 }
 
 // ---------- AUTH ----------
@@ -188,6 +235,19 @@ async function loadData() {
     }
 
     state.loads = data.loads || [];
+
+    // Preserve first-seen order (which already matches LOCATION_TABS
+    // order from the backend) rather than alphabetizing.
+    const seen = {};
+    state.locations = [];
+    state.loads.forEach(function (l) {
+      if (!seen[l.location]) {
+        seen[l.location] = true;
+        state.locations.push(l.location);
+      }
+    });
+
+    renderLocationTabs();
     renderLoadList();
     lastUpdatedEl.textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   } catch (err) {
@@ -200,19 +260,28 @@ async function loadData() {
 function renderLoadList() {
   loadListEl.querySelectorAll('.load-card').forEach(function (el) { el.remove(); });
 
-  if (state.loads.length === 0) {
-    emptyStateEl.textContent = 'No pending loads for this range.';
+  const visible = state.activeLocation === 'ALL'
+    ? state.loads
+    : state.loads.filter(function (l) { return l.location === state.activeLocation; });
+
+  if (visible.length === 0) {
+    emptyStateEl.textContent = state.activeLocation === 'ALL'
+      ? 'No loads for this range.'
+      : 'No loads at ' + state.activeLocation + ' for this range.';
     emptyStateEl.classList.remove('hidden');
     return;
   }
   emptyStateEl.classList.add('hidden');
 
-  // Group by location for readability, in tab order the loads already
-  // arrive in from getBrokerLoadList (which walks LOCATION_TABS in order).
-  state.loads
+  // Group by location, pending loads first (by appointment time), then
+  // delivered ones at the bottom of each location (most recently
+  // arrived first) — so what still needs attention stays up top.
+  visible
     .slice()
     .sort(function (a, b) {
       if (a.location !== b.location) return a.location.localeCompare(b.location);
+      if (a.arrived !== b.arrived) return a.arrived ? 1 : -1;
+      if (a.arrived && b.arrived) return new Date(b.arrivedAt) - new Date(a.arrivedAt);
       return String(a.appointmentTime).localeCompare(String(b.appointmentTime));
     })
     .forEach(function (load) {
@@ -222,11 +291,13 @@ function renderLoadList() {
 
 function renderLoadCard(load) {
   const card = document.createElement('div');
-  card.className = 'load-card';
+  card.className = 'load-card' + (load.arrived ? ' arrived' : '');
 
   const change = load.change;
-  const badge = change ? renderChangeBadge(change) : '';
-  const detail = change ? renderChangeDetail(change) : '';
+  const badge = load.arrived
+    ? '<span class="status-pill arrived">Delivered ' + escapeHtml(formatArrivedAt(load.arrivedAt)) + '</span>'
+    : (change ? renderChangeBadge(change) : '');
+  const detail = (!load.arrived && change) ? renderChangeDetail(change) : '';
 
   card.innerHTML =
     '<div class="load-card-top">' +
@@ -239,6 +310,12 @@ function renderLoadCard(load) {
     '<div class="load-bol">BOL ' + escapeHtml(String(load.inboundBol)) + '</div>' +
     '<div class="load-meta"><span><b>' + escapeHtml(load.carrier || '—') + '</b></span></div>' +
     detail;
+
+  // Delivered loads are informational only — nothing left for the
+  // broker to flag on a load that's already checked in.
+  if (load.arrived) {
+    return card;
+  }
 
   const actions = document.createElement('div');
   actions.className = 'load-actions broker-actions';
@@ -272,6 +349,15 @@ function renderLoadCard(load) {
 
   card.appendChild(actions);
   return card;
+}
+
+function formatArrivedAt(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  } catch (e) {
+    return '';
+  }
 }
 
 function renderChangeBadge(change) {
@@ -432,7 +518,10 @@ refreshBtn.addEventListener('click', loadData);
 
 // ---------- INIT ----------
 buildDateChips();
+renderLocationTabs();
 renderGreeting();
+updateStickyOffsets();
+window.addEventListener('resize', updateStickyOffsets);
 if (getBrokerAuth()) {
   loadData();
 } else {
