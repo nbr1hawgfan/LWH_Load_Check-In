@@ -36,6 +36,7 @@ const appShell = document.getElementById('appShell');
 const refreshBtn = document.getElementById('refreshBtn');
 const signOutBtn = document.getElementById('signOutBtn');
 const receiptsBtn = document.getElementById('receiptsBtn');
+const exportBtn = document.getElementById('exportBtn');
 const notifyChipEl = document.getElementById('notifyChip');
 
 const signInModal = document.getElementById('signInModal');
@@ -197,6 +198,93 @@ function renderProgressBar() {
     '<span>' + arrivedCount + ' / ' + total + ' arrived</span>' +
     '<div class="progress-track"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
     '<span>' + pct + '%</span>';
+}
+
+// ---------- EXPORT (CSV of the currently viewed loads) ----------
+// A plain record of scheduled vs. arrival time, plus any reschedule/
+// delay/cancel flags, for whichever day and location tab is currently
+// selected. Note: this has an appointment time and an arrival (check-in)
+// time, but no departure/release time, since the warehouse team doesn't
+// clock trucks out — so it documents when a truck was scheduled and when
+// it showed up, not how long it actually dwelled at the dock.
+function exportCsv() {
+  if (state.selectedDate === 'ALL') {
+    showToast('Pick a specific day (or use the calendar) to export — All Upcoming doesn\'t include arrival times');
+    return;
+  }
+
+  const visible = state.activeLocation === 'ALL'
+    ? state.loads
+    : state.loads.filter(function (l) { return l.location === state.activeLocation; });
+
+  if (visible.length === 0) {
+    showToast('Nothing to export for this view');
+    return;
+  }
+
+  const headers = [
+    'Location', 'BOL', 'Carrier', 'Project', 'Pallets',
+    'Scheduled Date', 'Appointment Time',
+    'Arrived', 'Arrived At', 'Dock',
+    'Flag Type', 'Flag New Date', 'Flag New Time', 'Flag Notes', 'Flag By',
+    'Load Notes'
+  ];
+
+  const rows = visible
+    .slice()
+    .sort(function (a, b) {
+      const dateCmp = String(a.inboundScheduled).localeCompare(String(b.inboundScheduled));
+      if (dateCmp !== 0) return dateCmp;
+      return parseTimeToMinutes(a.appointmentTime) - parseTimeToMinutes(b.appointmentTime);
+    })
+    .map(function (l) {
+      const change = l.change || {};
+      return [
+        l.location,
+        l.inboundBol,
+        l.carrier || '',
+        l.project || '',
+        l.pallets || '',
+        l.inboundScheduled || '',
+        l.appointmentTime || '',
+        l.arrived ? 'Yes' : 'No',
+        l.arrived ? formatArrivedAtFull(l.arrivedAt) : '',
+        l.arrivedDock || '',
+        change.type || '',
+        change.newDate || '',
+        change.newTime || '',
+        change.notes || '',
+        change.changedBy || '',
+        l.inboundNotes || ''
+      ];
+    });
+
+  const csvLines = [headers].concat(rows).map(function (fields) {
+    return fields.map(csvEscape).join(',');
+  });
+  const csv = csvLines.join('\r\n');
+
+  const dateLabel = state.selectedDate.replace(/\//g, '-');
+  const locLabel = state.activeLocation === 'ALL' ? 'All-Locations' : state.activeLocation.replace(/\s+/g, '-');
+  const filename = 'loads_' + locLabel + '_' + dateLabel + '.csv';
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function csvEscape(value) {
+  const str = value === null || value === undefined ? '' : String(value);
+  if (/[",\r\n]/.test(str)) {
+    return '"' + str.replace(/"/g, '""') + '"';
+  }
+  return str;
 }
 
 // ---------- AUTH ----------
@@ -598,15 +686,16 @@ function renderChangeBadge(change) {
 function renderChangeDetail(change) {
   let text = '';
   if (change.type === 'RESCHEDULED') {
-    text = 'New date: ' + escapeHtml(change.newDate || '—') + (change.newTime ? ' at ' + escapeHtml(change.newTime) : '');
+    text = '📅 New date: ' + escapeHtml(change.newDate || '—') + (change.newTime ? ' at ' + escapeHtml(change.newTime) : '');
   } else if (change.type === 'DELAYED') {
-    text = 'New approx. ETA: ' + escapeHtml(change.newTime || '—');
+    text = '⏰ New approx. ETA: ' + escapeHtml(change.newTime || '—');
   } else if (change.type === 'CANCELLED') {
-    text = 'Marked cancelled';
+    text = '🚫 Marked cancelled';
   }
   if (change.notes) text += ' — ' + escapeHtml(change.notes);
   text += ' (by ' + escapeHtml(change.changedBy || 'broker') + ')';
-  return '<div class="change-detail">' + text + '</div>';
+  const cls = 'change-detail' + (change.type === 'CANCELLED' ? ' cancelled' : '');
+  return '<div class="' + cls + '">' + text + '</div>';
 }
 
 // ---------- ACTION MODAL ----------
@@ -927,6 +1016,7 @@ function linkifyMessage(text) {
 
 refreshBtn.addEventListener('click', loadData);
 receiptsBtn.addEventListener('click', function () { window.open(RECEIPTS_FOLDER_URL, '_blank', 'noopener'); });
+exportBtn.addEventListener('click', exportCsv);
 notifyChipEl.addEventListener('click', toggleNotifications);
 datePickerEl.addEventListener('change', onDatePicked);
 searchBtn.addEventListener('click', openSearchSheet);

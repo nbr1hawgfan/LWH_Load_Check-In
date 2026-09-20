@@ -810,7 +810,7 @@ function renderLoadCard(load) {
 
   if (load.change) {
     const changeDetail = document.createElement('div');
-    changeDetail.className = 'change-detail';
+    changeDetail.className = 'change-detail' + (load.change.type === 'CANCELLED' ? ' cancelled' : '');
     changeDetail.textContent = formatChangeDetailText(load.change);
     card.appendChild(changeDetail);
   }
@@ -878,11 +878,11 @@ function formatArrivedAtFull(iso) {
 function formatChangeDetailText(change) {
   let text = '';
   if (change.type === 'RESCHEDULED') {
-    text = 'Broker: new date ' + (change.newDate || '—') + (change.newTime ? ' at ' + change.newTime : '');
+    text = '📅 Broker: new date ' + (change.newDate || '—') + (change.newTime ? ' at ' + change.newTime : '');
   } else if (change.type === 'DELAYED') {
-    text = 'Broker: approx. new ETA ' + (change.newTime || '—');
+    text = '⏰ Broker: approx. new ETA ' + (change.newTime || '—');
   } else if (change.type === 'CANCELLED') {
-    text = 'Broker: marked cancelled';
+    text = '🚫 Broker: marked cancelled';
   } else {
     text = 'Broker update';
   }
