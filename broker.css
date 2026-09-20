@@ -1,0 +1,87 @@
+/* Broker portal — small set of additions on top of style.css. Kept in
+   its own file so the main app's stylesheet doesn't grow broker-only
+   rules it never uses. */
+
+.broker-banner {
+  background: #fff8e6;
+  border-bottom: 1px solid var(--border);
+  color: #7a5b00;
+  font-size: 12.5px;
+  padding: 10px 14px;
+  line-height: 1.4;
+}
+
+.field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+textarea.modal-like-input {
+  resize: vertical;
+  font-family: inherit;
+}
+
+.change-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.change-badge.rescheduled {
+  background: var(--amber-bg);
+  color: var(--amber);
+}
+
+.change-badge.delayed {
+  background: var(--amber-bg);
+  color: var(--amber);
+}
+
+.change-badge.cancelled {
+  background: var(--red-bg);
+  color: var(--brand-red);
+}
+
+.change-detail {
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.load-actions.broker-actions .btn {
+  padding: 10px 8px;
+  font-size: 13px;
+}
+
+.btn-reschedule {
+  background: var(--bg);
+  border: 1px solid var(--amber);
+  color: var(--amber);
+}
+
+.btn-delay {
+  background: var(--bg);
+  border: 1px solid var(--amber);
+  color: var(--amber);
+}
+
+.btn-cancel {
+  background: var(--bg);
+  border: 1px solid var(--brand-red);
+  color: var(--brand-red);
+}
+
+.btn-clear {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}

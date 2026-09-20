@@ -599,8 +599,16 @@ function renderProgressBar() {
     return;
   }
 
-  const total = active.loads.length;
-  const arrivedCount = active.loads.filter((l) => l.arrived).length;
+  // Cancelled loads stay visible in the list (below) but don't count
+  // toward the day's total — they were never going to arrive.
+  const countable = active.loads.filter((l) => !(l.change && l.change.type === 'CANCELLED'));
+  const total = countable.length;
+  const arrivedCount = countable.filter((l) => l.arrived).length;
+  if (total === 0) {
+    progressBarEl.innerHTML = '';
+    progressBarEl.style.display = 'none';
+    return;
+  }
   const pct = Math.round((arrivedCount / total) * 100);
 
   progressBarEl.style.display = 'flex';
@@ -618,6 +626,7 @@ function isToday() {
 
 function isOverdue(load) {
   if (load.arrived) return false;
+  if (load.change) return false; // rescheduled/delayed/cancelled loads aren't "no-shows"
   if (!isToday()) return false;
   const now = new Date();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
@@ -686,8 +695,14 @@ function renderLoadCard(load) {
 
   const pill = document.createElement('div');
   const overdue = isOverdue(load);
-  pill.className = 'status-pill ' + (load.arrived ? 'arrived' : (overdue ? 'late' : 'pending'));
-  pill.textContent = load.arrived ? 'Arrived' : (overdue ? 'Late' : 'Pending');
+  if (load.change && !load.arrived) {
+    const changeLabels = { RESCHEDULED: 'Rescheduled', DELAYED: 'Delayed', CANCELLED: 'Cancelled' };
+    pill.className = 'change-badge ' + load.change.type.toLowerCase();
+    pill.textContent = changeLabels[load.change.type] || load.change.type;
+  } else {
+    pill.className = 'status-pill ' + (load.arrived ? 'arrived' : (overdue ? 'late' : 'pending'));
+    pill.textContent = load.arrived ? 'Arrived' : (overdue ? 'Late' : 'Pending');
+  }
 
   top.appendChild(timeBlock);
   top.appendChild(pill);
@@ -708,6 +723,13 @@ function renderLoadCard(load) {
   card.appendChild(top);
   card.appendChild(bol);
   card.appendChild(meta);
+
+  if (load.change) {
+    const changeDetail = document.createElement('div');
+    changeDetail.className = 'change-detail';
+    changeDetail.textContent = formatChangeDetailText(load.change);
+    card.appendChild(changeDetail);
+  }
 
   if (load.inboundNotes) {
     const notes = document.createElement('div');
@@ -772,6 +794,25 @@ function formatArrivedAtFull(iso) {
   }
 }
 
+// Broker-reported reschedule/delay/cancel flag, shown on the card and in
+// the detail sheet. The original schedule is untouched underneath this —
+// see LoadChanges in the backend for the audit trail.
+function formatChangeDetailText(change) {
+  let text = '';
+  if (change.type === 'RESCHEDULED') {
+    text = 'Broker: new date ' + (change.newDate || '—') + (change.newTime ? ' at ' + change.newTime : '');
+  } else if (change.type === 'DELAYED') {
+    text = 'Broker: approx. new ETA ' + (change.newTime || '—');
+  } else if (change.type === 'CANCELLED') {
+    text = 'Broker: marked cancelled';
+  } else {
+    text = 'Broker update';
+  }
+  if (change.notes) text += ' — ' + change.notes;
+  text += ' (' + (change.changedBy || 'broker') + ')';
+  return text;
+}
+
 // ---------- DETAIL SHEET ----------
 function openDetailSheet(load) {
   sheetContent.innerHTML = `
@@ -793,6 +834,7 @@ function openDetailSheet(load) {
     ${detailRow('Warehouse Address', load.warehouseAddress)}
     ${load.inboundNotes ? detailRow('Notes', load.inboundNotes) : ''}
     ${load.markedBy ? detailRow('Marked By', load.markedBy) : ''}
+    ${load.change ? detailRow('Broker Update', formatChangeDetailText(load.change)) : ''}
   `;
   detailSheet.classList.remove('hidden');
 }

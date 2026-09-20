@@ -1,6 +1,6 @@
 // Bump this on every deploy that changes cached files — this is the
 // "cache busting" step people always forget with GAS + GitHub Pages PWAs.
-const CACHE_NAME = 'inbound-tracker-v5';
+const CACHE_NAME = 'inbound-tracker-v6';
 
 const APP_SHELL = [
   './',
@@ -9,7 +9,10 @@ const APP_SHELL = [
   './app.js',
   './manifest.json',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './broker.html',
+  './broker.css',
+  './broker.js'
 ];
 
 self.addEventListener('install', (event) => {
