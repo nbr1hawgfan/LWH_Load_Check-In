@@ -17,7 +17,8 @@ let state = {
   adminDate: toApiDateString(new Date()),
   adminView: 'activity',
   editingStaffOriginalName: null,
-  pendingDockLoad: null // the load waiting on the dock modal before Mark Arrived fires
+  pendingDockLoad: null, // the load waiting on the dock modal before Mark Arrived fires
+  activeMessageLoad: null // the load whose thread the messages sheet is showing
 };
 
 // ---------- DOM ----------
@@ -79,6 +80,14 @@ const dockInput = document.getElementById('dockInput');
 const dockSkipBtn = document.getElementById('dockSkipBtn');
 const dockConfirmBtn = document.getElementById('dockConfirmBtn');
 
+const messagesSheet = document.getElementById('messagesSheet');
+const messagesTitle = document.getElementById('messagesTitle');
+const messagesSubtitle = document.getElementById('messagesSubtitle');
+const messagesList = document.getElementById('messagesList');
+const messageInput = document.getElementById('messageInput');
+const messageSendBtn = document.getElementById('messageSendBtn');
+const messagesCloseBtn = document.getElementById('messagesCloseBtn');
+
 const toastEl = document.getElementById('toast');
 
 // ---------- INIT ----------
@@ -99,6 +108,11 @@ searchSheet.addEventListener('click', (e) => { if (e.target === searchSheet) clo
 dockSkipBtn.addEventListener('click', () => confirmMarkArrived(''));
 dockConfirmBtn.addEventListener('click', () => confirmMarkArrived(dockInput.value.trim()));
 dockModal.addEventListener('click', (e) => { if (e.target === dockModal) closeDockModal(); });
+
+messagesCloseBtn.addEventListener('click', closeMessagesSheet);
+messagesSheet.addEventListener('click', (e) => { if (e.target === messagesSheet) closeMessagesSheet(); });
+messageSendBtn.addEventListener('click', sendMessageFromInput);
+messageInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessageFromInput(); });
 searchInput.addEventListener('input', debounce(runSearch, 300));
 
 adminCloseBtn.addEventListener('click', closeAdminSheet);
@@ -320,7 +334,7 @@ async function performAction(action, auth) {
       return null;
     }
 
-    closeSheet();
+    if (action.type !== 'sendMessage') closeSheet();
     if (action.type === 'sendReport') {
       showToast('Report sent', false);
     } else if (action.type === 'markArrived' || action.type === 'unmarkArrived') {
@@ -465,7 +479,15 @@ async function confirmSignIn() {
     closeSignInModal();
 
     if (action && action.type !== 'noop') {
-      await performAction(action, auth);
+      const result = await performAction(action, auth);
+      if (action.type === 'sendMessage' && result && result.ok) {
+        messageInput.value = '';
+        if (state.activeMessageLoad) {
+          state.activeMessageLoad.messageCount = (state.activeMessageLoad.messageCount || 0) + 1;
+          await loadMessagesThread();
+          renderLoadList();
+        }
+      }
     } else {
       showToast('Signed in as ' + auth.name, false);
     }
@@ -682,12 +704,6 @@ function isOverdue(load) {
   return parseTimeToMinutes(load.appointmentTime) < nowMinutes;
 }
 
-function loadPriority(load) {
-  if (isOverdue(load)) return 0;
-  if (!load.arrived) return 1;
-  return 2;
-}
-
 function renderLoadList() {
   const active = state.locations.find((l) => l.location === state.activeLocation);
   loadListEl.innerHTML = '';
@@ -702,9 +718,11 @@ function renderLoadList() {
     return;
   }
 
+  // Straight chronological order — all the 7am loads, then all the 8am
+  // loads, and so on, regardless of arrived/late/flagged status. Those
+  // are still called out with pills/badges on each card; they just don't
+  // reshuffle the list anymore.
   const sorted = [...active.loads].sort((a, b) => {
-    const priorityDiff = loadPriority(a) - loadPriority(b);
-    if (priorityDiff !== 0) return priorityDiff;
     const dateCmp = String(a.inboundScheduled).localeCompare(String(b.inboundScheduled));
     if (dateCmp !== 0) return dateCmp;
     return compareTimeStrings(a.appointmentTime, b.appointmentTime);
@@ -753,8 +771,19 @@ function renderLoadCard(load) {
     pill.textContent = load.arrived ? 'Arrived' : (overdue ? 'Late' : 'Pending');
   }
 
+  const topRight = document.createElement('div');
+  topRight.className = 'load-card-top-right';
+  topRight.appendChild(pill);
+
+  const messageBtn = document.createElement('button');
+  messageBtn.className = 'message-chip';
+  messageBtn.innerHTML = '💬' + (load.messageCount > 0 ? ' <span>' + load.messageCount + '</span>' : '');
+  messageBtn.title = 'Messages';
+  messageBtn.addEventListener('click', (e) => { e.stopPropagation(); openMessagesSheet(load); });
+  topRight.appendChild(messageBtn);
+
   top.appendChild(timeBlock);
-  top.appendChild(pill);
+  top.appendChild(topRight);
 
   const bol = document.createElement('div');
   bol.className = 'load-bol';
@@ -889,6 +918,78 @@ function detailRow(label, value) {
 
 function closeSheet() {
   detailSheet.classList.add('hidden');
+}
+
+// ---------- MESSAGES (quick notes with the broker) ----------
+async function openMessagesSheet(load) {
+  state.activeMessageLoad = load;
+  messagesTitle.textContent = 'BOL ' + load.inboundBol;
+  messagesSubtitle.textContent = load.location + ' · ' + (load.carrier || 'Carrier TBD');
+  messageInput.value = '';
+  messagesList.innerHTML = '<div class="search-empty">Loading…</div>';
+  messagesSheet.classList.remove('hidden');
+  await loadMessagesThread();
+  setTimeout(() => messageInput.focus(), 100);
+}
+
+function closeMessagesSheet() {
+  messagesSheet.classList.add('hidden');
+  state.activeMessageLoad = null;
+}
+
+async function loadMessagesThread() {
+  const load = state.activeMessageLoad;
+  if (!load) return;
+  try {
+    const url = API_URL + '?action=messages&location=' + encodeURIComponent(load.location) +
+      '&bol=' + encodeURIComponent(load.inboundBol);
+    const res = await fetch(url, { cache: 'no-store' });
+    const json = await res.json();
+    renderMessagesList(json.ok ? json.messages : []);
+  } catch (err) {
+    messagesList.innerHTML = '<div class="search-empty">Could not reach the server.</div>';
+  }
+}
+
+function renderMessagesList(messages) {
+  if (!messages || messages.length === 0) {
+    messagesList.innerHTML = '<div class="search-empty">No messages yet on this load.</div>';
+    return;
+  }
+  messagesList.innerHTML = messages.map((m) => `
+    <div class="message-bubble ${m.senderType === 'broker' ? 'from-broker' : 'from-staff'}">
+      <div class="message-meta">${escapeHtml(m.sender || (m.senderType === 'broker' ? 'Broker' : 'Staff'))} · ${formatArrivedAtFull(m.timestamp)}</div>
+      <div class="message-text">${escapeHtml(m.message)}</div>
+    </div>
+  `).join('');
+  messagesList.scrollTop = messagesList.scrollHeight;
+}
+
+async function sendMessageFromInput() {
+  const load = state.activeMessageLoad;
+  const text = messageInput.value.trim();
+  if (!load || !text) return;
+
+  const auth = getAuth();
+  if (!auth) {
+    state.pendingAction = { type: 'sendMessage', payload: { location: load.location, bol: load.inboundBol, message: text } };
+    openSignInModal(state.pendingAction);
+    return;
+  }
+
+  messageSendBtn.disabled = true;
+  const result = await performAction(
+    { type: 'sendMessage', payload: { location: load.location, bol: load.inboundBol, message: text } },
+    auth
+  );
+  messageSendBtn.disabled = false;
+
+  if (result && result.ok) {
+    messageInput.value = '';
+    load.messageCount = (load.messageCount || 0) + 1;
+    await loadMessagesThread();
+    renderLoadList();
+  }
 }
 
 // ---------- SEARCH ----------

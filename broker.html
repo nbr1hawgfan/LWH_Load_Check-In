@@ -38,8 +38,8 @@
 <div class="broker-banner">
   Flag a schedule change below — the warehouse sees it right away. This
   doesn't move the load off today's list; it just adds a note for the
-  warehouse crew until they update the master schedule. On Today/Tomorrow,
-  checked-in loads also show up here as "Delivered" the moment the warehouse
+  gate crew until they update the master schedule. On Today/Tomorrow,
+  checked-in loads also show up here as "Delivered" the moment the gate
   crew marks them arrived.
 </div>
 
@@ -57,6 +57,21 @@
   <div class="empty-state" id="emptyState">Loading…</div>
 </main>
 
+<!-- Per-load message thread with the warehouse -->
+<div id="messagesSheet" class="sheet-overlay hidden">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2 id="messagesTitle">Messages</h2>
+    <p id="messagesSubtitle" class="sheet-hint"></p>
+    <div id="messagesList" class="messages-list"></div>
+    <div class="message-compose">
+      <input id="messageInput" type="text" placeholder="Type a quick message…" autocomplete="off" maxlength="500" />
+      <button id="messageSendBtn" class="btn btn-primary">Send</button>
+    </div>
+    <button class="sheet-close" id="messagesCloseBtn">Close</button>
+  </div>
+</div>
+
 <!-- Reschedule / Delay / Cancel action modal -->
 <div id="actionModal" class="modal-overlay hidden">
   <div class="modal">
@@ -73,7 +88,7 @@
     </div>
     <div id="actionNotesField">
       <label class="field-label">Notes (optional)</label>
-      <textarea id="actionNotesInput" class="modal-like-input" rows="2" placeholder="Anything the warehouse crew should know"></textarea>
+      <textarea id="actionNotesInput" class="modal-like-input" rows="2" placeholder="Anything the gate crew should know"></textarea>
     </div>
 
     <div id="actionModalError" class="modal-error hidden"></div>

@@ -13,7 +13,8 @@ let state = {
   activeLocation: 'ALL', // 'ALL' or one location name
   selectedDate: toApiDateString(new Date()), // 'MM/dd/yyyy' or 'ALL'
   actionMode: null,     // 'reschedule' | 'delay' | 'cancel'
-  actionLoad: null       // the load object the open action modal targets
+  actionLoad: null,      // the load object the open action modal targets
+  activeMessageLoad: null // the load whose thread the messages sheet is showing
 };
 
 // ---------- DOM ----------
@@ -38,6 +39,14 @@ const searchSheet = document.getElementById('searchSheet');
 const searchInput = document.getElementById('searchInput');
 const searchResultsEl = document.getElementById('searchResults');
 const searchCloseBtn = document.getElementById('searchCloseBtn');
+
+const messagesSheet = document.getElementById('messagesSheet');
+const messagesTitle = document.getElementById('messagesTitle');
+const messagesSubtitle = document.getElementById('messagesSubtitle');
+const messagesList = document.getElementById('messagesList');
+const messageInput = document.getElementById('messageInput');
+const messageSendBtn = document.getElementById('messageSendBtn');
+const messagesCloseBtn = document.getElementById('messagesCloseBtn');
 
 const actionModal = document.getElementById('actionModal');
 const actionModalTitle = document.getElementById('actionModalTitle');
@@ -279,20 +288,32 @@ function renderLoadList() {
   }
   emptyStateEl.classList.add('hidden');
 
-  // Group by location, pending loads first (by appointment time), then
-  // delivered ones at the bottom of each location (most recently
-  // arrived first) — so what still needs attention stays up top.
+  // Straight chronological order — all the 7am loads, then all the 8am
+  // loads, and so on (same as the gate crew app), regardless of
+  // location, delivered/pending, or flagged status. Use the location
+  // tabs above to narrow to one warehouse if that's more useful.
   visible
     .slice()
     .sort(function (a, b) {
-      if (a.location !== b.location) return a.location.localeCompare(b.location);
-      if (a.arrived !== b.arrived) return a.arrived ? 1 : -1;
-      if (a.arrived && b.arrived) return new Date(b.arrivedAt) - new Date(a.arrivedAt);
-      return String(a.appointmentTime).localeCompare(String(b.appointmentTime));
+      const dateCmp = String(a.inboundScheduled).localeCompare(String(b.inboundScheduled));
+      if (dateCmp !== 0) return dateCmp;
+      return parseTimeToMinutes(a.appointmentTime) - parseTimeToMinutes(b.appointmentTime);
     })
     .forEach(function (load) {
       loadListEl.appendChild(renderLoadCard(load));
     });
+}
+
+function parseTimeToMinutes(str) {
+  if (!str) return 9999;
+  const m = String(str).match(/(\d+):(\d+)\s*(AM|PM)?/i);
+  if (!m) return 9999;
+  let hour = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  const ampm = (m[3] || '').toUpperCase();
+  if (ampm === 'PM' && hour !== 12) hour += 12;
+  if (ampm === 'AM' && hour === 12) hour = 0;
+  return hour * 60 + min;
 }
 
 function renderLoadCard(load) {
@@ -305,17 +326,29 @@ function renderLoadCard(load) {
     : (change ? renderChangeBadge(change) : '');
   const detail = (!load.arrived && change) ? renderChangeDetail(change) : '';
 
+  const messageChipHtml = '<button class="message-chip" type="button" title="Messages">💬' +
+    (load.messageCount > 0 ? ' <span>' + load.messageCount + '</span>' : '') + '</button>';
+
   card.innerHTML =
     '<div class="load-card-top">' +
       '<div>' +
         '<div class="load-time">' + escapeHtml(load.appointmentTime || '—') + '</div>' +
         '<div class="load-date">' + escapeHtml(load.location) + ' · ' + escapeHtml(load.inboundScheduled || '') + '</div>' +
       '</div>' +
-      (badge || '<span class="status-pill pending">Pending</span>') +
+      '<div class="load-card-top-right">' +
+        (badge || '<span class="status-pill pending">Pending</span>') +
+        messageChipHtml +
+      '</div>' +
     '</div>' +
     '<div class="load-bol">BOL ' + escapeHtml(String(load.inboundBol)) + '</div>' +
     '<div class="load-meta"><span><b>' + escapeHtml(load.carrier || '—') + '</b></span></div>' +
     detail;
+
+  const messageChipBtn = card.querySelector('.message-chip');
+  messageChipBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    openMessagesSheet(load);
+  });
 
   // Delivered loads are informational only — nothing left for the
   // broker to flag on a load that's already checked in.
@@ -361,6 +394,17 @@ function formatArrivedAt(iso) {
   if (!iso) return '';
   try {
     return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  } catch (e) {
+    return '';
+  }
+}
+
+function formatArrivedAtFull(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString([], { month: 'numeric', day: 'numeric' }) + ' ' +
+      d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   } catch (e) {
     return '';
   }
@@ -504,6 +548,92 @@ async function runBrokerAction(mode, load, extra) {
   }
 }
 
+// ---------- MESSAGES (quick notes with the warehouse) ----------
+async function openMessagesSheet(load) {
+  state.activeMessageLoad = load;
+  messagesTitle.textContent = 'BOL ' + load.inboundBol;
+  messagesSubtitle.textContent = load.location + ' · ' + (load.carrier || '—');
+  messageInput.value = '';
+  messagesList.innerHTML = '<div class="search-empty">Loading…</div>';
+  messagesSheet.classList.remove('hidden');
+  await loadMessagesThread();
+  setTimeout(function () { messageInput.focus(); }, 100);
+}
+
+function closeMessagesSheet() {
+  messagesSheet.classList.add('hidden');
+  state.activeMessageLoad = null;
+}
+
+async function loadMessagesThread() {
+  const load = state.activeMessageLoad;
+  if (!load) return;
+  try {
+    const url = API_URL + '?action=messages&location=' + encodeURIComponent(load.location) +
+      '&bol=' + encodeURIComponent(load.inboundBol);
+    const res = await fetch(url, { cache: 'no-store' });
+    const data = await res.json();
+    renderMessagesList(data.ok ? data.messages : []);
+  } catch (err) {
+    messagesList.innerHTML = '<div class="search-empty">Could not reach the server.</div>';
+  }
+}
+
+function renderMessagesList(messages) {
+  if (!messages || messages.length === 0) {
+    messagesList.innerHTML = '<div class="search-empty">No messages yet on this load.</div>';
+    return;
+  }
+  messagesList.innerHTML = messages.map(function (m) {
+    return '<div class="message-bubble ' + (m.senderType === 'broker' ? 'from-broker' : 'from-staff') + '">' +
+      '<div class="message-meta">' + escapeHtml(m.sender || (m.senderType === 'broker' ? 'Broker' : 'Staff')) + ' · ' + formatArrivedAtFull(m.timestamp) + '</div>' +
+      '<div class="message-text">' + escapeHtml(m.message) + '</div>' +
+    '</div>';
+  }).join('');
+  messagesList.scrollTop = messagesList.scrollHeight;
+}
+
+async function sendMessageFromInput() {
+  const load = state.activeMessageLoad;
+  const text = messageInput.value.trim();
+  if (!load || !text) return;
+
+  const auth = getBrokerAuth();
+  if (!auth) {
+    openSignInModal();
+    return;
+  }
+
+  messageSendBtn.disabled = true;
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action: 'brokerSendMessage',
+        brokerCode: auth.code,
+        brokerName: auth.name,
+        location: load.location,
+        bol: load.inboundBol,
+        message: text
+      })
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      showToast(data.error || 'Message did not send — try again.');
+      return;
+    }
+    messageInput.value = '';
+    load.messageCount = (load.messageCount || 0) + 1;
+    await loadMessagesThread();
+    renderLoadList();
+  } catch (err) {
+    showToast('Could not reach the server — check your connection.');
+  } finally {
+    messageSendBtn.disabled = false;
+  }
+}
+
 // ---------- SEARCH ----------
 // Looks up any BOL/carrier across every location and every day —
 // including already-delivered loads — same as the gate crew app's
@@ -609,6 +739,11 @@ searchBtn.addEventListener('click', openSearchSheet);
 searchCloseBtn.addEventListener('click', closeSearchSheet);
 searchSheet.addEventListener('click', function (e) { if (e.target === searchSheet) closeSearchSheet(); });
 searchInput.addEventListener('input', debounce(runSearch, 350));
+
+messagesCloseBtn.addEventListener('click', closeMessagesSheet);
+messagesSheet.addEventListener('click', function (e) { if (e.target === messagesSheet) closeMessagesSheet(); });
+messageSendBtn.addEventListener('click', sendMessageFromInput);
+messageInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') sendMessageFromInput(); });
 
 // ---------- INIT ----------
 buildDateChips();

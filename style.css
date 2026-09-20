@@ -386,6 +386,99 @@ body {
   padding: 3px 10px;
 }
 
+/* Per-load message thread */
+.load-card-top-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.message-chip {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-dim);
+}
+
+.message-chip span {
+  background: var(--brand-red);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
+.messages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 42vh;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+.message-bubble {
+  max-width: 85%;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 13.5px;
+}
+
+.message-bubble.from-staff {
+  align-self: flex-start;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.message-bubble.from-broker {
+  align-self: flex-end;
+  background: var(--green-bg);
+  border: 1px solid rgba(26, 127, 55, 0.25);
+}
+
+.message-meta {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.message-text {
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.message-compose {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.message-compose input {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  font-size: 16px;
+}
+
+.message-compose .btn {
+  flex: 0 0 auto;
+  padding: 11px 16px;
+}
+
 .load-bol {
   font-size: 15px;
   font-weight: 700;

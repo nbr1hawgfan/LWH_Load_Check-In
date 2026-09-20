@@ -125,6 +125,21 @@
   </div>
 </div>
 
+<!-- Per-load message thread with the broker -->
+<div id="messagesSheet" class="sheet-overlay hidden">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2 id="messagesTitle">Messages</h2>
+    <p id="messagesSubtitle" class="sheet-hint"></p>
+    <div id="messagesList" class="messages-list"></div>
+    <div class="message-compose">
+      <input id="messageInput" type="text" placeholder="Type a quick message…" autocomplete="off" maxlength="500" />
+      <button id="messageSendBtn" class="btn btn-primary">Send</button>
+    </div>
+    <button class="sheet-close" id="messagesCloseBtn">Close</button>
+  </div>
+</div>
+
 <!-- Dock assignment (optional) — shown right before Mark Arrived commits -->
 <div id="dockModal" class="modal-overlay hidden">
   <div class="modal">
