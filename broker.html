@@ -14,12 +14,19 @@
 </head>
 <body>
 
+<!-- Nothing in here renders until a valid sign-in is confirmed (fresh or
+     cached) — see revealAppShell()/hideAppShell() in broker.js. Keeps a
+     visitor without the access code from seeing anything beyond the
+     sign-in prompt, not just the load data. -->
+<div id="appShell" class="hidden">
+
 <header class="topbar">
   <div class="topbar-title">
     <h1>Broker Portal</h1>
     <div class="topbar-subline">
       <span id="brokerGreeting" class="user-greeting hidden"></span>
       <span id="lastUpdated" class="last-updated">—</span>
+      <button id="notifyChip" class="weather-pill" title="Toggle new-message alerts">🔔 Alerts: Off</button>
     </div>
   </div>
   <div class="topbar-actions">
@@ -59,6 +66,8 @@
 <main id="loadList" class="load-list">
   <div class="empty-state" id="emptyState">Loading…</div>
 </main>
+
+</div><!-- #appShell -->
 
 <!-- Per-load message thread with the warehouse -->
 <div id="messagesSheet" class="sheet-overlay hidden">

@@ -5,6 +5,8 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbyX6N102QHuhZoHGKIipl81
 
 const AUTO_REFRESH_MS = 2 * 60 * 1000;
 const BROKER_AUTH_KEY = 'inboundTrackerBrokerAuth'; // { name, code }
+const BROKER_NOTIFY_KEY = 'inboundTrackerBrokerNotifyOn'; // 'true' | 'false'
+const BROKER_SEEN_MSG_KEY = 'inboundTrackerBrokerSeenMsgCounts'; // { "location::bol": count }
 // Shared Drive folder of signed delivery receipts — same link as the
 // warehouse app, opened as a plain link (no Drive API wired up here).
 const RECEIPTS_FOLDER_URL = 'https://drive.google.com/drive/folders/14DWq8DSOMLxWztqyz8QwgpJrNpHVZn50?usp=sharing';
@@ -28,9 +30,11 @@ const emptyStateEl = document.getElementById('emptyState');
 const lastUpdatedEl = document.getElementById('lastUpdated');
 const brokerGreetingEl = document.getElementById('brokerGreeting');
 
+const appShell = document.getElementById('appShell');
 const refreshBtn = document.getElementById('refreshBtn');
 const signOutBtn = document.getElementById('signOutBtn');
 const receiptsBtn = document.getElementById('receiptsBtn');
+const notifyChipEl = document.getElementById('notifyChip');
 
 const signInModal = document.getElementById('signInModal');
 const brokerNameInput = document.getElementById('brokerNameInput');
@@ -172,7 +176,126 @@ function renderGreeting() {
   }
 }
 
+// ---------- ALERTS (new messages from the warehouse) ----------
+// Same idea as the "overdue" alerts in the warehouse app: local browser
+// notifications only (no server push), opt-in, and only fire while this
+// tab is open somewhere (foreground or a background tab) — not when the
+// browser/phone is fully closed. Triggers on a NEW message where the
+// warehouse team sent the last word on a load, so the broker doesn't
+// have to keep the portal open and staring at it to know someone asked
+// something.
+function notificationsEnabled() {
+  try { return localStorage.getItem(BROKER_NOTIFY_KEY) === 'true'; } catch (e) { return false; }
+}
+
+function renderNotifyChip() {
+  const on = notificationsEnabled() && typeof Notification !== 'undefined' && Notification.permission === 'granted';
+  notifyChipEl.textContent = '🔔 Alerts: ' + (on ? 'On' : 'Off');
+  notifyChipEl.classList.toggle('notify-on', on);
+}
+
+async function toggleNotifications() {
+  if (typeof Notification === 'undefined') {
+    showToast('Notifications aren\'t supported in this browser');
+    return;
+  }
+
+  const currentlyOn = notificationsEnabled() && Notification.permission === 'granted';
+  if (currentlyOn) {
+    localStorage.setItem(BROKER_NOTIFY_KEY, 'false');
+    renderNotifyChip();
+    showToast('Message alerts turned off');
+    return;
+  }
+
+  if (Notification.permission === 'denied') {
+    showToast('Notifications are blocked for this site in your browser settings');
+    return;
+  }
+
+  const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+  if (permission !== 'granted') {
+    renderNotifyChip();
+    return;
+  }
+  localStorage.setItem(BROKER_NOTIFY_KEY, 'true');
+  renderNotifyChip();
+  showToast('You\'ll get an alert here when the warehouse messages you');
+  // Establish a baseline so turning this on doesn't immediately fire
+  // notifications for every message that already existed.
+  primeSeenMessageCounts();
+}
+
+function getSeenMessageCounts() {
+  try {
+    return JSON.parse(localStorage.getItem(BROKER_SEEN_MSG_KEY) || '{}');
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveSeenMessageCounts(counts) {
+  try { localStorage.setItem(BROKER_SEEN_MSG_KEY, JSON.stringify(counts)); } catch (e) {}
+}
+
+function primeSeenMessageCounts() {
+  const seen = {};
+  state.loads.forEach(function (load) {
+    seen[load.location + '::' + load.inboundBol] = load.messageCount || 0;
+  });
+  saveSeenMessageCounts(seen);
+}
+
+/**
+ * Called after every data refresh. Fires a Notification for any load
+ * whose message count went up since we last checked AND whose latest
+ * message came from the warehouse team (never for the broker's own
+ * sends). Only covers loads in the currently-loaded date range/location
+ * filter — a message on a day outside what's loaded won't be caught
+ * until that range is viewed.
+ */
+function checkNewMessageNotifications() {
+  const seen = getSeenMessageCounts();
+  if (!notificationsEnabled() || typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+    // Still keep the baseline in sync so nothing floods in once alerts
+    // are turned back on.
+    primeSeenMessageCounts();
+    return;
+  }
+
+  state.loads.forEach(function (load) {
+    const key = load.location + '::' + load.inboundBol;
+    const count = load.messageCount || 0;
+    const previously = key in seen ? seen[key] : count; // unseen load: don't notify on first sight
+    if (count > previously && load.lastMessageSenderType === 'staff') {
+      try {
+        new Notification('New message · BOL ' + load.inboundBol, {
+          body: load.location + ' · ' + (load.carrier || 'Carrier TBD') + ' — the warehouse team sent a message',
+          tag: key
+        });
+      } catch (e) { /* ignore — some browsers restrict Notification() outside a SW */ }
+    }
+    seen[key] = count;
+  });
+  saveSeenMessageCounts(seen);
+}
+
+// The app shell (topbar, banner, tabs, load list — everything but the
+// sign-in prompt) stays hidden until a valid access code is confirmed,
+// so there's nothing to see here beyond "enter your code" without one.
+function revealAppShell() {
+  appShell.classList.remove('hidden');
+  // The topbar/tabs were display:none while hidden, so their measured
+  // heights were 0 — recompute now that they're actually laid out.
+  setTimeout(updateStickyOffsets, 0);
+}
+
+function hideAppShell() {
+  appShell.classList.add('hidden');
+}
+
 function openSignInModal(errorMsg) {
+  hideAppShell();
   signInModal.classList.remove('hidden');
   if (errorMsg) {
     signInError.textContent = errorMsg;
@@ -210,6 +333,7 @@ signInConfirm.addEventListener('click', async function () {
     }
     saveBrokerAuth({ name: name, code: code });
     closeSignInModal();
+    revealAppShell();
     renderGreeting();
     loadData();
   } catch (err) {
@@ -268,6 +392,7 @@ async function loadData() {
 
     renderLocationTabs();
     renderLoadList();
+    checkNewMessageNotifications();
     lastUpdatedEl.textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   } catch (err) {
     emptyStateEl.textContent = 'Could not reach the server. Check your connection and try refreshing.';
@@ -752,6 +877,7 @@ function linkifyMessage(text) {
 
 refreshBtn.addEventListener('click', loadData);
 receiptsBtn.addEventListener('click', function () { window.open(RECEIPTS_FOLDER_URL, '_blank', 'noopener'); });
+notifyChipEl.addEventListener('click', toggleNotifications);
 searchBtn.addEventListener('click', openSearchSheet);
 searchCloseBtn.addEventListener('click', closeSearchSheet);
 searchSheet.addEventListener('click', function (e) { if (e.target === searchSheet) closeSearchSheet(); });
@@ -766,9 +892,11 @@ messageInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') s
 buildDateChips();
 renderLocationTabs();
 renderGreeting();
+renderNotifyChip();
 updateStickyOffsets();
 window.addEventListener('resize', updateStickyOffsets);
 if (getBrokerAuth()) {
+  revealAppShell();
   loadData();
 } else {
   openSignInModal();
