@@ -25,6 +25,8 @@ let state = {
 // ---------- DOM ----------
 const locationTabsEl = document.getElementById('locationTabs');
 const dateChipsEl = document.getElementById('dateChips');
+const datePickerEl = document.getElementById('datePicker');
+const progressBarEl = document.getElementById('progressBar');
 const loadListEl = document.getElementById('loadList');
 const emptyStateEl = document.getElementById('emptyState');
 const lastUpdatedEl = document.getElementById('lastUpdated');
@@ -114,6 +116,26 @@ function buildDateChips() {
     });
     dateChipsEl.appendChild(btn);
   });
+
+  if (state.selectedDate !== 'ALL') {
+    const parts = state.selectedDate.split('/');
+    const m = parts[0], d = parts[1], y = parts[2];
+    datePickerEl.value = y + '-' + pad2(Number(m)) + '-' + pad2(Number(d));
+  } else {
+    datePickerEl.value = '';
+  }
+}
+
+// Lets the broker jump to any date, not just Today/Tomorrow/All Upcoming —
+// e.g. to check yesterday's deliveries or a load scheduled further out.
+function onDatePicked(e) {
+  const val = e.target.value; // yyyy-mm-dd
+  if (!val) return;
+  const parts = val.split('-').map(Number);
+  const y = parts[0], m = parts[1], d = parts[2];
+  state.selectedDate = pad2(m) + '/' + pad2(d) + '/' + y;
+  buildDateChips();
+  loadData();
 }
 
 // ---------- LOCATION TABS ----------
@@ -146,7 +168,35 @@ function renderLocationTabs() {
     locationTabsEl.appendChild(btn);
   });
 
+  renderProgressBar();
   updateStickyOffsets();
+}
+
+// ---------- RENDER: PROGRESS BAR ----------
+// Same "X / Y arrived" bar as the warehouse app, scoped to whichever
+// location tab (or All Locations) and date range is currently selected.
+function renderProgressBar() {
+  const visible = state.activeLocation === 'ALL'
+    ? state.loads
+    : state.loads.filter(function (l) { return l.location === state.activeLocation; });
+
+  // Cancelled loads don't count toward the total — they were never
+  // going to arrive.
+  const countable = visible.filter(function (l) { return !(l.change && l.change.type === 'CANCELLED'); });
+  const total = countable.length;
+  if (total === 0) {
+    progressBarEl.innerHTML = '';
+    progressBarEl.style.display = 'none';
+    return;
+  }
+  const arrivedCount = countable.filter(function (l) { return l.arrived; }).length;
+  const pct = Math.round((arrivedCount / total) * 100);
+
+  progressBarEl.style.display = 'flex';
+  progressBarEl.innerHTML =
+    '<span>' + arrivedCount + ' / ' + total + ' arrived</span>' +
+    '<div class="progress-track"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
+    '<span>' + pct + '%</span>';
 }
 
 // ---------- AUTH ----------
@@ -878,6 +928,7 @@ function linkifyMessage(text) {
 refreshBtn.addEventListener('click', loadData);
 receiptsBtn.addEventListener('click', function () { window.open(RECEIPTS_FOLDER_URL, '_blank', 'noopener'); });
 notifyChipEl.addEventListener('click', toggleNotifications);
+datePickerEl.addEventListener('change', onDatePicked);
 searchBtn.addEventListener('click', openSearchSheet);
 searchCloseBtn.addEventListener('click', closeSearchSheet);
 searchSheet.addEventListener('click', function (e) { if (e.target === searchSheet) closeSearchSheet(); });

@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#1a1a1a" />
-<title>One Source Loads Portal — Inbound Loads</title>
+<title>Broker Portal — Inbound Loads</title>
 <link rel="icon" href="icons/icon-192.png" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -22,7 +22,7 @@
 
 <header class="topbar">
   <div class="topbar-title">
-    <h1>One Source Loads Portal</h1>
+    <h1>Broker Portal</h1>
     <div class="topbar-subline">
       <span id="brokerGreeting" class="user-greeting hidden"></span>
       <span id="lastUpdated" class="last-updated">—</span>
@@ -61,7 +61,12 @@
   <div class="date-chips" id="dateChips">
     <!-- Today / Tomorrow / All Upcoming chips injected here -->
   </div>
+  <div class="date-picker-wrap">
+    <input type="date" id="datePicker" class="date-picker" aria-label="Pick a date" />
+  </div>
 </div>
+
+<div class="progress-bar" id="progressBar"></div>
 
 <main id="loadList" class="load-list">
   <div class="empty-state" id="emptyState">Loading…</div>
