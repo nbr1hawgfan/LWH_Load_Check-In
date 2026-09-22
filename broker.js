@@ -694,6 +694,11 @@ function renderLoadCard(load) {
     '<div class="load-bol">BOL ' + escapeHtml(String(load.inboundBol)) +
       (load.locationRef ? ' <span class="location-ref-chip">' + escapeHtml(load.locationRef) + '</span>' : '') +
     '</div>' +
+    (load.moduleType ?
+      '<div class="module-type-badge">' +
+        '<span class="label">Module Type</span>' +
+        '<span class="value">' + escapeHtml(load.moduleType) + '</span>' +
+      '</div>' : '') +
     '<div class="load-meta"><span><b>' + escapeHtml(load.carrier || '—') + '</b></span>' +
       (load.material ? '<span>' + escapeHtml(load.material) + '</span>' : '') +
     '</div>' +

@@ -832,6 +832,16 @@ function renderLoadCard(load) {
 
   card.appendChild(top);
   card.appendChild(bol);
+
+  if (load.moduleType) {
+    const moduleTypeBadge = document.createElement('div');
+    moduleTypeBadge.className = 'module-type-badge';
+    moduleTypeBadge.innerHTML =
+      '<span class="label">Module Type</span>' +
+      '<span class="value">' + escapeHtml(load.moduleType) + '</span>';
+    card.appendChild(moduleTypeBadge);
+  }
+
   card.appendChild(meta);
 
   if (load.change) {

@@ -497,6 +497,41 @@ body {
   border-color: #c7d7fb;
 }
 
+/* Module Type — warehouse asked for this to stand out on the main
+   card (not just the detail sheet), since it drives which dock a
+   load gets assigned to. Deliberately solid navy, not a soft chip
+   like the others, so it reads at a glance while scanning a long
+   list — and deliberately NOT green/maroon/amber so it's never
+   mistaken for a status indicator. Full width so long module codes
+   wrap instead of truncating. */
+.module-type-badge {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--brand-navy), var(--brand-navy-dark));
+  box-shadow: 0 2px 8px rgba(29, 63, 114, 0.35);
+}
+
+.module-type-badge .label {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.72);
+}
+
+.module-type-badge .value {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #fff;
+  word-break: break-all;
+  line-height: 1.25;
+}
+
 /* Per-load message thread */
 .load-card-top-right {
   display: flex;
