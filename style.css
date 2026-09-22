@@ -17,8 +17,9 @@
   --accent: var(--brand-maroon);
   --accent-dark: var(--brand-maroon-dark);
 
-  --green: #1a7f37;
-  --green-bg: #e9f7ee;
+  --green: #1f8a63;
+  --green-dark: #146448;
+  --green-bg: #e6f5ef;
   --red: var(--brand-maroon);
   --red-bg: #f7e9eb;
   --amber: #a06b00;
@@ -53,12 +54,15 @@
 html, body {
   margin: 0;
   padding: 0;
-  /* Faint fixed brand-color wash behind the flat gray page — subtle
-     enough not to affect card/text contrast, but gives the glass
-     surfaces below (topbar, sheets, modals) something to blur. */
+  /* Richer fixed brand-color wash — closer to the demo's look, but kept
+     on a light base (not the demo's dark theme) so cards stay
+     high-contrast. Test on actual warehouse phones before wide
+     rollout — backdrop-filter blur elsewhere in this file is GPU-heavy,
+     and richer/larger gradients add to that cost on older Android. */
   background:
-    radial-gradient(560px circle at 8% -8%, rgba(29,63,114,0.10), transparent 60%),
-    radial-gradient(560px circle at 100% 0%, rgba(122,31,43,0.10), transparent 60%),
+    radial-gradient(720px circle at 6% -6%, rgba(29,63,114,0.22), transparent 55%),
+    radial-gradient(720px circle at 100% -4%, rgba(122,31,43,0.22), transparent 55%),
+    radial-gradient(640px circle at 50% 100%, rgba(29,63,114,0.14), transparent 60%),
     var(--bg);
   background-attachment: fixed;
   color: var(--text);
@@ -366,7 +370,7 @@ body {
 }
 
 .load-card.arrived {
-  border-color: rgba(26, 127, 55, 0.35);
+  border-color: rgba(31, 138, 99, 0.35);
 }
 
 .load-card-top {
@@ -400,9 +404,9 @@ body {
 }
 
 .status-pill.arrived {
-  background: linear-gradient(135deg, #22a24d, #15803d);
+  background: linear-gradient(135deg, var(--green), var(--green-dark));
   color: #fff;
-  box-shadow: 0 2px 6px rgba(21,128,61,0.35);
+  box-shadow: 0 2px 6px rgba(31, 138, 99, 0.35);
 }
 
 .status-pill.pending {
@@ -545,7 +549,7 @@ body {
 .message-bubble.from-broker {
   align-self: flex-end;
   background: var(--green-bg);
-  border: 1px solid rgba(26, 127, 55, 0.25);
+  border: 1px solid rgba(31, 138, 99, 0.25);
 }
 
 .message-meta {
@@ -649,9 +653,9 @@ body {
 }
 
 .btn-arrive {
-  background: linear-gradient(135deg, #22a24d, #15803d);
+  background: linear-gradient(135deg, var(--green), var(--green-dark));
   color: #fff;
-  box-shadow: 0 4px 12px rgba(21, 128, 61, 0.35);
+  box-shadow: 0 4px 12px rgba(31, 138, 99, 0.35);
 }
 
 .btn-unarrive {
