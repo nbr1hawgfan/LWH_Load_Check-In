@@ -51,6 +51,10 @@ const searchInput = document.getElementById('searchInput');
 const searchResultsEl = document.getElementById('searchResults');
 const searchCloseBtn = document.getElementById('searchCloseBtn');
 
+const detailSheet = document.getElementById('detailSheet');
+const sheetContent = document.getElementById('sheetContent');
+const sheetCloseBtn = document.getElementById('sheetCloseBtn');
+
 const messagesSheet = document.getElementById('messagesSheet');
 const messagesTitle = document.getElementById('messagesTitle');
 const messagesSubtitle = document.getElementById('messagesSubtitle');
@@ -589,6 +593,57 @@ function parseTimeToMinutes(str) {
   return hour * 60 + min;
 }
 
+// ---------- DETAIL SHEET (tap the BOL) ----------
+// Same expanded-card info as the warehouse team app, minus anything
+// that's purely internal (who on staff marked it arrived).
+function openDetailSheet(load) {
+  sheetContent.innerHTML =
+    '<h2>BOL ' + escapeHtml(String(load.inboundBol)) + '</h2>' +
+    '<div class="load-date" style="margin-bottom:10px;">' + escapeHtml(load.location) + '</div>' +
+    detailRow('Status', load.arrived ? 'Delivered ' + formatArrivedAt(load.arrivedAt) : 'Pending') +
+    detailRow('Scheduled Date', load.inboundScheduled) +
+    detailRow('Appointment Time', load.appointmentTime) +
+    detailRow('Carrier', load.carrier) +
+    detailRow('Pallet Group ID', load.palletGroupId) +
+    detailRow('Material', load.material) +
+    detailRow('Module Type', load.moduleType) +
+    detailRow('Module Class', load.moduleClass) +
+    detailRow('Module Qty', load.moduleQty) +
+    detailRow('MW', load.mw) +
+    detailRow('Pallets', load.pallets) +
+    (load.locationRef ? detailRow('Delivery Location Ref', load.locationRef) : '') +
+    (load.inboundNotes ? detailRow('Notes', load.inboundNotes) : '') +
+    (load.arrivedDock ? detailRow('Dock', load.arrivedDock) : '') +
+    (load.change ? detailRow('Status Update', renderChangeDetailPlainText(load.change)) : '');
+  detailSheet.classList.remove('hidden');
+}
+
+function closeDetailSheet() {
+  detailSheet.classList.add('hidden');
+}
+
+function detailRow(label, value) {
+  return '<div class="detail-row"><span class="label">' + escapeHtml(label) +
+    '</span><span class="value">' + escapeHtml(value || '—') + '</span></div>';
+}
+
+// Plain-text version of renderChangeDetail() (which returns HTML with an
+// emoji + styled wrapper meant for the card) — the detail sheet just
+// wants the sentence itself inside a normal detail-row value.
+function renderChangeDetailPlainText(change) {
+  let text = '';
+  if (change.type === 'RESCHEDULED') {
+    text = 'New date: ' + (change.newDate || '—') + (change.newTime ? ' at ' + change.newTime : '');
+  } else if (change.type === 'DELAYED') {
+    text = 'New approx. ETA: ' + (change.newTime || '—');
+  } else if (change.type === 'CANCELLED') {
+    text = 'Marked cancelled';
+  }
+  if (change.notes) text += ' — ' + change.notes;
+  text += ' (by ' + (change.changedBy || 'broker') + ')';
+  return text;
+}
+
 function renderLoadCard(load) {
   const card = document.createElement('div');
   card.className = 'load-card' + (load.arrived ? ' arrived' : '');
@@ -626,6 +681,9 @@ function renderLoadCard(load) {
     e.stopPropagation();
     openMessagesSheet(load);
   });
+
+  const bolEl = card.querySelector('.load-bol');
+  bolEl.addEventListener('click', function () { openDetailSheet(load); });
 
   // Delivered loads are informational only — nothing left for the
   // broker to flag on a load that's already checked in.
@@ -1033,6 +1091,9 @@ searchBtn.addEventListener('click', openSearchSheet);
 searchCloseBtn.addEventListener('click', closeSearchSheet);
 searchSheet.addEventListener('click', function (e) { if (e.target === searchSheet) closeSearchSheet(); });
 searchInput.addEventListener('input', debounce(runSearch, 350));
+
+sheetCloseBtn.addEventListener('click', closeDetailSheet);
+detailSheet.addEventListener('click', function (e) { if (e.target === detailSheet) closeDetailSheet(); });
 
 messagesCloseBtn.addEventListener('click', closeMessagesSheet);
 messagesSheet.addEventListener('click', function (e) { if (e.target === messagesSheet) closeMessagesSheet(); });
