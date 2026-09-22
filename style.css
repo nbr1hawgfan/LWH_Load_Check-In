@@ -258,11 +258,14 @@ body {
   height: 34px;
 }
 
-/* A plain native date input reads as an empty white box, especially on
-   mobile — this draws an unmistakable calendar icon on top of it (the
-   input stays functional and underneath, just with its own text and
-   native icon hidden) so new users can tell it's tappable. */
-.date-picker-wrap::before {
+/* A plain native date input reads as an empty colored box, especially
+   on mobile — this draws an unmistakable calendar icon on top of it
+   (the input stays functional and underneath, just with its own text
+   and native icon hidden) so new users can tell it's tappable.
+   Must be ::after, not ::before — ::before paints BEHIND the <input>
+   that follows it in the markup, so the icon was getting fully
+   covered by the input's own background and never actually visible. */
+.date-picker-wrap::after {
   content: '';
   position: absolute;
   inset: 0;
