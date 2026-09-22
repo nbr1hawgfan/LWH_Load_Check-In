@@ -1,6 +1,6 @@
 // Bump this on every deploy that changes cached files — this is the
 // "cache busting" step people always forget with GAS + GitHub Pages PWAs.
-const CACHE_NAME = 'inbound-tracker-v20';
+const CACHE_NAME = 'inbound-tracker-v22';
 
 const APP_SHELL = [
   './',

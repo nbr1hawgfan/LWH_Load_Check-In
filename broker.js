@@ -207,10 +207,10 @@ function renderProgressBar() {
 // ---------- EXPORT (CSV of the currently viewed loads) ----------
 // A plain record of scheduled vs. arrival time, plus any reschedule/
 // delay/cancel flags, for whichever day and location tab is currently
-// selected. Note: this has an appointment time and an arrival (check-in)
-// time, but no departure/release time, since the warehouse team doesn't
-// clock trucks out — so it documents when a truck was scheduled and when
-// it showed up, not how long it actually dwelled at the dock.
+// selected. Now includes an optional Departed time (added 9/2026) and
+// the computed dwell time between arrival and departure, for whichever
+// loads your team has tapped "Mark Departed" on — that's opt-in per
+// load, so some rows may still only have an arrival time.
 function exportCsv() {
   if (state.selectedDate === 'ALL') {
     showToast('Pick a specific day (or use the calendar) to export — All Upcoming doesn\'t include arrival times');
@@ -231,6 +231,7 @@ function exportCsv() {
     'Module Qty', 'MW', 'Pallets', 'Delivery Location Ref',
     'Scheduled Date', 'Appointment Time',
     'Arrived', 'Arrived At', 'Dock',
+    'Departed', 'Departed At', 'Dwell Time',
     'Flag Type', 'Flag New Date', 'Flag New Time', 'Flag Notes', 'Flag By',
     'Load Notes'
   ];
@@ -260,6 +261,9 @@ function exportCsv() {
         l.arrived ? 'Yes' : 'No',
         l.arrived ? formatArrivedAtFull(l.arrivedAt) : '',
         l.arrivedDock || '',
+        l.departed ? 'Yes' : 'No',
+        l.departed ? formatArrivedAtFull(l.departedAt) : '',
+        l.departed ? formatDwellTime(l.arrivedAt, l.departedAt) : '',
         change.type || '',
         change.newDate || '',
         change.newTime || '',
@@ -601,6 +605,8 @@ function openDetailSheet(load) {
     '<h2>BOL ' + escapeHtml(String(load.inboundBol)) + '</h2>' +
     '<div class="load-date" style="margin-bottom:10px;">' + escapeHtml(load.location) + '</div>' +
     detailRow('Status', load.arrived ? 'Delivered ' + formatArrivedAt(load.arrivedAt) : 'Pending') +
+    (load.departed ? detailRow('Departed', formatArrivedAt(load.departedAt)) : '') +
+    (load.departed ? detailRow('Dwell Time', formatDwellTime(load.arrivedAt, load.departedAt)) : '') +
     detailRow('Scheduled Date', load.inboundScheduled) +
     detailRow('Appointment Time', load.appointmentTime) +
     detailRow('Carrier', load.carrier) +
@@ -620,6 +626,22 @@ function openDetailSheet(load) {
 
 function closeDetailSheet() {
   detailSheet.classList.add('hidden');
+}
+
+// Arrival -> departure, e.g. "1h 42m" — the actual dwell time detention
+// conversations are built on, which arrival time alone can't give.
+function formatDwellTime(arrivedAtIso, departedAtIso) {
+  if (!arrivedAtIso || !departedAtIso) return '—';
+  try {
+    const ms = new Date(departedAtIso) - new Date(arrivedAtIso);
+    if (isNaN(ms) || ms < 0) return '—';
+    const totalMin = Math.round(ms / 60000);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return (h > 0 ? h + 'h ' : '') + m + 'm';
+  } catch (e) {
+    return '—';
+  }
 }
 
 function detailRow(label, value) {
@@ -650,7 +672,8 @@ function renderLoadCard(load) {
 
   const change = load.change;
   const badge = load.arrived
-    ? '<span class="status-pill arrived">Delivered ' + escapeHtml(formatArrivedAt(load.arrivedAt)) + '</span>'
+    ? '<span class="status-pill arrived">Delivered ' + escapeHtml(formatArrivedAt(load.arrivedAt)) +
+      (load.departed ? ' · Departed ' + escapeHtml(formatArrivedAt(load.departedAt)) : '') + '</span>'
     : (change ? renderChangeBadge(change) : '');
   const detail = (!load.arrived && change) ? renderChangeDetail(change) : '';
 

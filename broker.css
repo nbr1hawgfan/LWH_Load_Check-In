@@ -46,8 +46,8 @@ textarea.modal-like-input {
 
 .btn-cancel {
   background: var(--bg);
-  border: 1px solid var(--brand-red);
-  color: var(--brand-red);
+  border: 1px solid var(--brand-maroon);
+  color: var(--brand-maroon);
 }
 
 .btn-clear {

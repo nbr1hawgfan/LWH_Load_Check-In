@@ -351,6 +351,10 @@ async function performAction(action, auth) {
       showToast(action.type === 'markArrived' ? 'Marked arrived' : 'Arrival undone', false);
       if (action.type === 'markArrived') vibrate();
       await loadData(false);
+    } else if (action.type === 'markDeparted' || action.type === 'unmarkDeparted') {
+      showToast(action.type === 'markDeparted' ? 'Marked departed' : 'Departure undone', false);
+      if (action.type === 'markDeparted') vibrate();
+      await loadData(false);
     }
     return json;
   } catch (err) {
@@ -359,11 +363,12 @@ async function performAction(action, auth) {
     // it'll sync automatically once the connection comes back. Admin
     // actions (staff/history) just fail with a clear message instead —
     // those aren't worth the complexity of queuing.
-    if (action.type === 'markArrived' || action.type === 'unmarkArrived') {
+    if (action.type === 'markArrived' || action.type === 'unmarkArrived' ||
+        action.type === 'markDeparted' || action.type === 'unmarkDeparted') {
       queueAction(action, auth);
       applyOptimisticUpdate(action, auth);
       showToast('Saved offline — will sync automatically', true);
-      if (action.type === 'markArrived') vibrate();
+      if (action.type === 'markArrived' || action.type === 'markDeparted') vibrate();
     } else {
       showToast('Network error — try again', false);
     }
@@ -386,11 +391,22 @@ function applyOptimisticUpdate(action, auth) {
         load.arrivedAt = new Date().toISOString();
         load.markedBy = auth.name;
         load.arrivedDock = action.payload.dock || null;
-      } else {
+      } else if (action.type === 'unmarkArrived') {
         load.arrived = false;
         load.arrivedAt = null;
         load.markedBy = null;
         load.arrivedDock = null;
+        load.departed = false;
+        load.departedAt = null;
+        load.departedBy = null;
+      } else if (action.type === 'markDeparted') {
+        load.departed = true;
+        load.departedAt = new Date().toISOString();
+        load.departedBy = auth.name;
+      } else if (action.type === 'unmarkDeparted') {
+        load.departed = false;
+        load.departedAt = null;
+        load.departedBy = null;
       }
     });
   });
@@ -832,6 +848,13 @@ function renderLoadCard(load) {
     card.appendChild(dockChip);
   }
 
+  if (load.departed) {
+    const departedChip = document.createElement('div');
+    departedChip.className = 'dock-chip departed-chip';
+    departedChip.textContent = 'Departed ' + formatArrivedAt(load.departedAt);
+    card.appendChild(departedChip);
+  }
+
   if (load.inboundNotes) {
     const notes = document.createElement('div');
     notes.className = 'load-notes';
@@ -850,6 +873,27 @@ function renderLoadCard(load) {
       { type: 'unmarkArrived', payload: { location: load.location, bol: load.inboundBol } }
     ));
     actions.appendChild(undoBtn);
+
+    // Added at a customer's request, to support their own detention
+    // conversations with an actual dwell time — one tap, no notes,
+    // same spirit as marking arrived. Optional; nothing requires it.
+    if (load.departed) {
+      const undoDepartBtn = document.createElement('button');
+      undoDepartBtn.className = 'btn btn-unarrive';
+      undoDepartBtn.textContent = 'Undo (departed ' + formatArrivedAt(load.departedAt) + ')';
+      undoDepartBtn.addEventListener('click', () => runGatedAction(
+        { type: 'unmarkDeparted', payload: { location: load.location, bol: load.inboundBol } }
+      ));
+      actions.appendChild(undoDepartBtn);
+    } else {
+      const departBtn = document.createElement('button');
+      departBtn.className = 'btn btn-depart';
+      departBtn.textContent = 'Mark Departed';
+      departBtn.addEventListener('click', () => runGatedAction(
+        { type: 'markDeparted', payload: { location: load.location, bol: load.inboundBol } }
+      ));
+      actions.appendChild(departBtn);
+    }
   } else {
     const arriveBtn = document.createElement('button');
     arriveBtn.className = 'btn btn-arrive';
@@ -907,6 +951,7 @@ function openDetailSheet(load) {
     <h2>BOL ${escapeHtml(load.inboundBol)}</h2>
     <div class="load-date" style="margin-bottom:10px;">${escapeHtml(load.location)}</div>
     ${detailRow('Status', load.arrived ? 'Arrived ' + formatArrivedAt(load.arrivedAt) : 'Pending')}
+    ${load.departed ? detailRow('Departed', formatArrivedAt(load.departedAt)) : ''}
     ${detailRow('Scheduled Date', load.inboundScheduled)}
     ${detailRow('Appointment Time', load.appointmentTime)}
     ${detailRow('Carrier', load.carrier)}
@@ -1147,29 +1192,35 @@ function renderHistoryList(entries) {
     const row = document.createElement('div');
     row.className = 'history-row';
 
-    const isArrived = entry.status === 'ARRIVED';
-    const statusLabel = isArrived ? 'Arrived' : 'Marked Not Arrived';
-    const statusClass = isArrived ? 'status-arrived' : 'status-unarrived';
+    const STATUS_INFO = {
+      ARRIVED: { label: 'Arrived', cls: 'status-arrived' },
+      UNARRIVED: { label: 'Marked Not Arrived', cls: 'status-unarrived' },
+      DEPARTED: { label: 'Departed', cls: 'status-departed' },
+      UNDEPARTED: { label: 'Marked Not Departed', cls: 'status-unarrived' }
+    };
+    const info = STATUS_INFO[entry.status] || { label: entry.status, cls: 'status-unarrived' };
 
     row.innerHTML = `
       <div class="history-row-top">
         <span>BOL ${escapeHtml(entry.inboundBol)} · ${escapeHtml(entry.location)}</span>
-        <span class="${statusClass}">${statusLabel}</span>
+        <span class="${info.cls}">${info.label}</span>
       </div>
       <div class="history-row-meta">
         ${escapeHtml(entry.carrier || 'Carrier TBD')} · ${escapeHtml(formatArrivedAtFull(entry.timestamp))} · by ${escapeHtml(entry.markedBy || '—')}
       </div>
     `;
 
-    if (isArrived) {
+    if (entry.status === 'ARRIVED' || entry.status === 'DEPARTED') {
       const actionsDiv = document.createElement('div');
       actionsDiv.className = 'history-row-actions';
       const undoBtn = document.createElement('button');
       undoBtn.className = 'btn btn-unarrive';
-      undoBtn.textContent = 'Undo this arrival';
+      undoBtn.textContent = entry.status === 'ARRIVED' ? 'Undo this arrival' : 'Undo this departure';
       undoBtn.addEventListener('click', async () => {
         const result = await runGatedActionReturning(
-          { type: 'unmarkArrived', payload: { location: entry.location, bol: entry.inboundBol } }
+          entry.status === 'ARRIVED'
+            ? { type: 'unmarkArrived', payload: { location: entry.location, bol: entry.inboundBol } }
+            : { type: 'unmarkDeparted', payload: { location: entry.location, bol: entry.inboundBol } }
         );
         if (result) loadHistory();
       });

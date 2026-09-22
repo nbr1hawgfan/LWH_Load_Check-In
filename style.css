@@ -1,24 +1,26 @@
 :root {
-  /* Palette pulled from the Logistics Warehouse customer portal */
-  --brand-red: #c41230;
-  --brand-red-dark: #a10f28;
-  --brand-black: #1a1a1a;
-  --brand-gold: #d4a017;
+  /* Blue & Maroon theme — approved by Doug 9/21/2026 (was red/black/gold) */
+  --brand-maroon: #7a1f2b;
+  --brand-maroon-dark: #5c1620;
+  --brand-navy: #1d3f72;
+  --brand-navy-dark: #16305a;
+  --brand-blue: #2563eb;
+  --brand-blue-dark: #1d4ed8;
 
-  --bg: #f4f4f5;
+  --bg: #eef1f6;
   --bg-elevated: #ffffff;
   --bg-card: #ffffff;
-  --border: #e2e2e4;
-  --text: #1a1a1a;
+  --border: #dfe4ec;
+  --text: #1a2436;
   --text-dim: #6b7280;
 
-  --accent: var(--brand-red);
-  --accent-dark: var(--brand-red-dark);
+  --accent: var(--brand-maroon);
+  --accent-dark: var(--brand-maroon-dark);
 
   --green: #1a7f37;
   --green-bg: #e9f7ee;
-  --red: var(--brand-red);
-  --red-bg: #fff5f6;
+  --red: var(--brand-maroon);
+  --red-bg: #f7e9eb;
   --amber: #a06b00;
   --amber-bg: #fdf3dc;
   /* Not used anywhere else in the app — reserved for broker-flagged
@@ -31,6 +33,11 @@
      red family so it doesn't read as just another "late/pending" red. */
   --flag-slate: #334155;
   --flag-slate-dark: #0f172a;
+  /* Departed (a truck leaving the dock) is its own lifecycle stage after
+     Arrived — reuses the theme's blue accent so it reads as a distinct
+     stage from "arrived" (green) or a plain undo (gray). */
+  --depart-blue: var(--brand-blue);
+  --depart-blue-dark: var(--brand-blue-dark);
 
   --radius: 14px;
   --safe-top: env(safe-area-inset-top, 0px);
@@ -63,8 +70,8 @@ body {
   flex-direction: column;
   gap: 10px;
   padding: calc(14px + var(--safe-top)) 14px 12px;
-  background: var(--brand-red);
-  border-bottom: 1px solid var(--brand-red-dark);
+  background: var(--brand-navy);
+  border-bottom: 1px solid var(--brand-navy-dark);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -155,8 +162,8 @@ body {
   gap: 8px;
   padding: 10px 12px;
   overflow-x: auto;
-  background: var(--brand-black);
-  border-bottom: 1px solid #000;
+  background: #ffffff;
+  border-bottom: 1px solid var(--border);
   position: sticky;
   top: var(--topbar-h, 70px);
   z-index: 9;
@@ -169,19 +176,17 @@ body {
   flex: 0 0 auto;
   padding: 9px 16px;
   border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.16);
-  background: transparent;
-  color: rgba(255,255,255,0.65);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-dim);
   font-size: 13.5px;
   font-weight: 700;
   white-space: nowrap;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
 }
 
 .tab-btn.active {
-  background: var(--brand-red);
-  border-color: var(--brand-red);
+  background: var(--brand-maroon);
+  border-color: var(--brand-maroon);
   color: #fff;
 }
 
@@ -220,8 +225,8 @@ body {
 }
 
 .date-chip.active {
-  background: var(--brand-black);
-  border-color: var(--brand-black);
+  background: var(--brand-navy);
+  border-color: var(--brand-navy);
   color: #fff;
 }
 
@@ -244,7 +249,7 @@ body {
   width: 18px;
   height: 18px;
   pointer-events: none;
-  background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%231a1a1a' d='M7 2v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zM5 10h14v10H5V10z'/%3E%3C/svg%3E");
+  background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23ffffff' d='M7 2v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zM5 10h14v10H5V10z'/%3E%3C/svg%3E");
 }
 
 .date-picker {
@@ -255,8 +260,8 @@ body {
   padding: 0;
   margin: 0;
   border-radius: 8px;
-  border: 1px solid #b8860f;
-  background: var(--brand-gold);
+  border: 1px solid var(--brand-maroon-dark);
+  background: var(--brand-maroon);
   color: transparent;
   cursor: pointer;
   -webkit-appearance: none;
@@ -296,20 +301,20 @@ body {
 
 .progress-bar .progress-fill {
   height: 100%;
-  background: var(--green);
+  background: var(--brand-navy);
   border-radius: 999px;
   transition: width 0.3s ease;
 }
 
 .status-pill.late {
-  background: #fdeaea;
-  color: #b42318;
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+  color: #fff;
   animation: pulse-late 2s ease-in-out infinite;
 }
 
 @keyframes pulse-late {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.55; }
+  0%, 100% { box-shadow: 0 1px 3px rgba(220,38,38,0.3); }
+  50% { box-shadow: 0 0 0 5px rgba(220,38,38,0.25); }
 }
 
 .toast.offline {
@@ -358,7 +363,7 @@ body {
   font-size: 22px;
   font-weight: 800;
   line-height: 1;
-  color: var(--brand-black);
+  color: var(--text);
 }
 
 .load-date {
@@ -378,13 +383,15 @@ body {
 }
 
 .status-pill.arrived {
-  background: var(--green-bg);
-  color: var(--green);
+  background: linear-gradient(135deg, #22a24d, #15803d);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(21,128,61,0.35);
 }
 
 .status-pill.pending {
-  background: var(--red-bg);
-  color: var(--brand-red);
+  background: linear-gradient(135deg, var(--brand-maroon), var(--brand-maroon-dark));
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(122,31,43,0.35);
 }
 
 /* Broker-reported reschedule/delay/cancel flags (see broker.html) — made
@@ -453,6 +460,14 @@ body {
   padding: 3px 10px;
 }
 
+/* Departed timestamp — reuses .dock-chip's shape, tinted blue to match
+   the Mark Departed button */
+.departed-chip.dock-chip {
+  color: var(--depart-blue-dark);
+  background: #eaf1ff;
+  border-color: #c7d7fb;
+}
+
 /* Per-load message thread */
 .load-card-top-right {
   display: flex;
@@ -462,8 +477,8 @@ body {
 }
 
 .message-chip {
-  background: var(--brand-gold);
-  border: 1px solid #b8860f;
+  background: var(--brand-blue);
+  border: none;
   border-radius: 999px;
   padding: 5px 11px;
   font-size: 12.5px;
@@ -471,16 +486,16 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: #1a1a1a;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
 }
 
 .message-chip:active {
-  background: #b8860f;
+  background: var(--brand-blue-dark);
 }
 
 .message-chip span {
-  background: #1a1a1a;
+  background: var(--brand-blue-dark);
   color: #fff;
   font-size: 10.5px;
   font-weight: 700;
@@ -532,7 +547,7 @@ body {
 }
 
 .message-text a {
-  color: var(--brand-red);
+  color: var(--brand-maroon);
   font-weight: 700;
   text-decoration: underline;
 }
@@ -561,7 +576,7 @@ body {
 .load-bol {
   font-size: 15px;
   font-weight: 700;
-  color: var(--brand-red);
+  color: var(--brand-maroon);
 }
 
 /* Customer's "Delivery Location Reference (if Multiple)" — only shown
@@ -609,33 +624,43 @@ body {
 
 .btn {
   flex: 1;
-  padding: 11px 14px;
-  border-radius: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
   border: none;
   font-size: 14px;
   font-weight: 700;
 }
 
 .btn-arrive {
-  background: var(--green);
+  background: linear-gradient(135deg, #22a24d, #15803d);
   color: #fff;
+  box-shadow: 0 4px 12px rgba(21, 128, 61, 0.35);
 }
 
 .btn-unarrive {
-  background: var(--bg);
-  border: 1px solid var(--border);
+  background: #ffffff;
+  border: none;
   color: var(--text-dim);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+}
+
+.btn-depart {
+  background: linear-gradient(135deg, var(--brand-blue), var(--brand-blue-dark));
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
 }
 
 .btn-primary {
-  background: var(--brand-red);
+  background: linear-gradient(135deg, var(--brand-maroon), var(--brand-maroon-dark));
   color: #fff;
+  box-shadow: 0 4px 12px rgba(122, 31, 43, 0.35);
 }
 
 .btn-secondary {
-  background: var(--bg);
-  border: 1px solid var(--border);
+  background: #ffffff;
+  border: none;
   color: var(--text);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
 }
 
 /* Bottom sheet (load detail) */
@@ -670,7 +695,7 @@ body {
 .sheet h2 {
   margin: 0 0 4px;
   font-size: 20px;
-  color: var(--brand-black);
+  color: var(--text);
 }
 
 .sheet-hint {
@@ -712,7 +737,7 @@ body {
   justify-content: space-between;
   font-size: 14px;
   font-weight: 700;
-  color: var(--brand-red);
+  color: var(--brand-maroon);
 }
 
 .search-result-meta {
@@ -726,7 +751,7 @@ body {
 }
 
 .search-result-status.arrived { color: var(--green); }
-.search-result-status.pending { color: var(--brand-red); }
+.search-result-status.pending { color: var(--brand-maroon); }
 
 .search-empty {
   text-align: center;
@@ -763,8 +788,8 @@ body {
 }
 
 .admin-tab.active {
-  background: var(--brand-black);
-  border-color: var(--brand-black);
+  background: var(--brand-navy);
+  border-color: var(--brand-navy);
   color: #fff;
 }
 
@@ -786,6 +811,7 @@ body {
 
 .history-row-top .status-arrived { color: var(--green); }
 .history-row-top .status-unarrived { color: var(--text-dim); }
+.history-row-top .status-departed { color: var(--depart-blue); }
 
 .history-row-meta {
   font-size: 12px;
@@ -818,7 +844,7 @@ body {
 .staff-row-name {
   font-weight: 700;
   font-size: 14px;
-  color: var(--brand-black);
+  color: var(--text);
 }
 
 .staff-row-role {
@@ -913,7 +939,7 @@ body {
 .modal h3 {
   margin: 0 0 14px;
   font-size: 16px;
-  color: var(--brand-black);
+  color: var(--text);
 }
 
 .modal input {
@@ -928,7 +954,7 @@ body {
 }
 
 .modal-error {
-  color: var(--brand-red);
+  color: var(--brand-maroon);
   font-size: 12.5px;
   margin-bottom: 8px;
 }
@@ -947,8 +973,8 @@ body {
   bottom: calc(20px + var(--safe-bottom));
   left: 50%;
   transform: translateX(-50%);
-  background: var(--brand-black);
-  border: 1px solid #000;
+  background: var(--brand-navy);
+  border: 1px solid var(--brand-navy-dark);
   color: #fff;
   padding: 12px 18px;
   border-radius: 10px;
