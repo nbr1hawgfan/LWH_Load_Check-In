@@ -53,7 +53,14 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--bg);
+  /* Faint fixed brand-color wash behind the flat gray page — subtle
+     enough not to affect card/text contrast, but gives the glass
+     surfaces below (topbar, sheets, modals) something to blur. */
+  background:
+    radial-gradient(560px circle at 8% -8%, rgba(29,63,114,0.10), transparent 60%),
+    radial-gradient(560px circle at 100% 0%, rgba(122,31,43,0.10), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-tap-highlight-color: transparent;
@@ -70,11 +77,21 @@ body {
   flex-direction: column;
   gap: 10px;
   padding: calc(14px + var(--safe-top)) 14px 12px;
-  background: var(--brand-navy);
-  border-bottom: 1px solid var(--brand-navy-dark);
+  background: rgba(29, 63, 114, 0.74);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-bottom: 1px solid rgba(255,255,255,0.14);
   position: sticky;
   top: 0;
   z-index: 10;
+}
+
+/* Browsers without backdrop-filter support (very old Android/Firefox)
+   fall back to the original solid navy so the header stays readable. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .topbar {
+    background: var(--brand-navy);
+  }
 }
 
 .topbar-title h1 {
@@ -667,7 +684,9 @@ body {
 .sheet-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.5);
+  background: rgba(13, 21, 36, 0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   display: flex;
   align-items: flex-end;
   z-index: 20;
@@ -676,12 +695,22 @@ body {
 .sheet-overlay.hidden { display: none; }
 
 .sheet {
-  background: var(--bg-elevated);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(26px) saturate(180%);
+  -webkit-backdrop-filter: blur(26px) saturate(180%);
   width: 100%;
   border-radius: 18px 18px 0 0;
   padding: 10px 18px calc(20px + var(--safe-bottom));
   max-height: 80vh;
   overflow-y: auto;
+  border-top: 1px solid rgba(255,255,255,0.6);
+  box-shadow: 0 -8px 30px rgba(0,0,0,0.18);
+}
+
+/* Fallback for browsers without backdrop-filter — solid panel, no blur */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .sheet-overlay { background: rgba(0,0,0,0.5); }
+  .sheet { background: var(--bg-elevated); }
 }
 
 .sheet-handle {
@@ -917,7 +946,9 @@ body {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.6);
+  background: rgba(13, 21, 36, 0.55);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -928,12 +959,21 @@ body {
 .modal-overlay.hidden { display: none; }
 
 .modal {
-  background: var(--bg-elevated);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(26px) saturate(180%);
+  -webkit-backdrop-filter: blur(26px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.5);
   border-radius: var(--radius);
   padding: 20px;
   width: 100%;
   max-width: 320px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+}
+
+/* Fallback for browsers without backdrop-filter — solid panel, no blur */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .modal-overlay { background: rgba(0,0,0,0.6); }
+  .modal { background: var(--bg-elevated); border: none; }
 }
 
 .modal h3 {
