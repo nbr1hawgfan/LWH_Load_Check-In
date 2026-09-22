@@ -296,8 +296,12 @@ function confirmMarkArrived(dock) {
       location: load.location,
       bol: load.inboundBol,
       carrier: load.carrier,
-      project: load.project,
       palletGroupId: load.palletGroupId,
+      moduleType: load.moduleType,
+      moduleClass: load.moduleClass,
+      moduleQty: load.moduleQty,
+      mw: load.mw,
+      locationRef: load.locationRef,
       pallets: load.pallets,
       inboundScheduled: load.inboundScheduled,
       appointmentTime: load.appointmentTime,
@@ -795,13 +799,19 @@ function renderLoadCard(load) {
   bol.className = 'load-bol';
   bol.textContent = 'BOL ' + load.inboundBol;
   bol.addEventListener('click', () => openDetailSheet(load));
+  if (load.locationRef) {
+    const refTag = document.createElement('span');
+    refTag.className = 'location-ref-chip';
+    refTag.textContent = load.locationRef;
+    bol.appendChild(refTag);
+  }
 
   const meta = document.createElement('div');
   meta.className = 'load-meta';
   meta.innerHTML = `
     <span><b>${escapeHtml(load.carrier || 'Carrier TBD')}</b></span>
     <span>${escapeHtml(load.pallets || '')} pallets</span>
-    <span>${escapeHtml(load.project || '')}</span>
+    <span>${escapeHtml(load.material || '')}</span>
   `;
 
   card.appendChild(top);
@@ -900,16 +910,14 @@ function openDetailSheet(load) {
     ${detailRow('Scheduled Date', load.inboundScheduled)}
     ${detailRow('Appointment Time', load.appointmentTime)}
     ${detailRow('Carrier', load.carrier)}
-    ${detailRow('Project', load.project)}
     ${detailRow('Pallet Group ID', load.palletGroupId)}
     ${detailRow('Material', load.material)}
-    ${detailRow('Manufacture', load.manufacture)}
-    ${detailRow('Description', load.desc)}
-    ${detailRow('Power', load.power)}
-    ${detailRow('PCs', load.pcs)}
+    ${detailRow('Module Type', load.moduleType)}
+    ${detailRow('Module Class', load.moduleClass)}
+    ${detailRow('Module Qty', load.moduleQty)}
+    ${detailRow('MW', load.mw)}
     ${detailRow('Pallets', load.pallets)}
-    ${detailRow('Warehouse', load.warehouse)}
-    ${detailRow('Warehouse Address', load.warehouseAddress)}
+    ${load.locationRef ? detailRow('Delivery Location Ref', load.locationRef) : ''}
     ${load.inboundNotes ? detailRow('Notes', load.inboundNotes) : ''}
     ${load.markedBy ? detailRow('Marked By', load.markedBy) : ''}
     ${load.arrivedDock ? detailRow('Dock', load.arrivedDock) : ''}

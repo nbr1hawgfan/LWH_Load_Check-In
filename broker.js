@@ -223,7 +223,8 @@ function exportCsv() {
   }
 
   const headers = [
-    'Location', 'BOL', 'Carrier', 'Project', 'Pallets',
+    'Location', 'BOL', 'Carrier', 'Material', 'Module Type', 'Module Class',
+    'Module Qty', 'MW', 'Pallets', 'Delivery Location Ref',
     'Scheduled Date', 'Appointment Time',
     'Arrived', 'Arrived At', 'Dock',
     'Flag Type', 'Flag New Date', 'Flag New Time', 'Flag Notes', 'Flag By',
@@ -243,8 +244,13 @@ function exportCsv() {
         l.location,
         l.inboundBol,
         l.carrier || '',
-        l.project || '',
+        l.material || '',
+        l.moduleType || '',
+        l.moduleClass || '',
+        l.moduleQty || '',
+        l.mw || '',
         l.pallets || '',
+        l.locationRef || '',
         l.inboundScheduled || '',
         l.appointmentTime || '',
         l.arrived ? 'Yes' : 'No',
@@ -607,8 +613,12 @@ function renderLoadCard(load) {
         messageChipHtml +
       '</div>' +
     '</div>' +
-    '<div class="load-bol">BOL ' + escapeHtml(String(load.inboundBol)) + '</div>' +
-    '<div class="load-meta"><span><b>' + escapeHtml(load.carrier || '—') + '</b></span></div>' +
+    '<div class="load-bol">BOL ' + escapeHtml(String(load.inboundBol)) +
+      (load.locationRef ? ' <span class="location-ref-chip">' + escapeHtml(load.locationRef) + '</span>' : '') +
+    '</div>' +
+    '<div class="load-meta"><span><b>' + escapeHtml(load.carrier || '—') + '</b></span>' +
+      (load.material ? '<span>' + escapeHtml(load.material) + '</span>' : '') +
+    '</div>' +
     detail;
 
   const messageChipBtn = card.querySelector('.message-chip');
