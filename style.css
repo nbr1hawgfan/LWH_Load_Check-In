@@ -1,46 +1,48 @@
 :root {
-  /* Blue & Maroon theme — approved by Doug 9/21/2026 (was red/black/gold) */
-  --brand-maroon: #7a1f2b;
-  --brand-maroon-dark: #5c1620;
-  --brand-navy: #1d3f72;
-  --brand-navy-dark: #16305a;
-  --brand-blue: #2563eb;
-  --brand-blue-dark: #1d4ed8;
+  /* One Source look — mirrors the One Source Inventory app (ONEPH_Inventory):
+     black header with a red rule, Barlow type, square-ish 4px corners,
+     underline tabs, flat bordered buttons. */
+  --brand-red: #C41230;
+  --brand-red-dark: #9E0E27;
+  --brand-black: #1A1A1A;
 
-  --bg: #eef1f6;
+  --ink: #2B2B2B;
+  --muted: #5E5E5E;
+  --line: #D9D9D9;
+  --wash: #F4F4F4;
+
+  --bg: #FFFFFF;
   --bg-elevated: #ffffff;
   --bg-card: #ffffff;
-  --border: #dfe4ec;
-  --text: #1a2436;
-  --text-dim: #6b7280;
+  --border: var(--line);
+  --text: var(--ink);
+  --text-dim: var(--muted);
 
-  --accent: var(--brand-maroon);
-  --accent-dark: var(--brand-maroon-dark);
+  --accent: var(--brand-red);
+  --accent-dark: var(--brand-red-dark);
 
-  --green: #1f8a63;
-  --green-dark: #146448;
-  --green-bg: #e6f5ef;
-  --red: var(--brand-maroon);
-  --red-bg: #f7e9eb;
+  --green: #1a7f37;
+  --green-bg: #e9f7ee;
+  --red: var(--brand-red);
+  --red-bg: #FBEFF1;
   --amber: #a06b00;
   --amber-bg: #fdf3dc;
-  /* Not used anywhere else in the app — reserved for broker-flagged
-     reschedule/delay changes, so that flag reads as unmistakably
-     different from "late" (red) or the general note color (amber). */
+  /* Reserved for broker-flagged reschedule/delay changes, so that flag
+     reads as unmistakably different from "late" (red) or the general
+     note color (amber). */
   --flag-purple: #7c3aed;
   --flag-purple-dark: #4c1d95;
   --flag-purple-bg: #f3e8ff;
-  /* Also reserved, for a Cancelled flag specifically — kept out of the
-     red family so it doesn't read as just another "late/pending" red. */
+  /* Also reserved, for a Cancelled flag specifically. */
   --flag-slate: #334155;
   --flag-slate-dark: #0f172a;
-  /* Departed (a truck leaving the dock) is its own lifecycle stage after
-     Arrived — reuses the theme's blue accent so it reads as a distinct
-     stage from "arrived" (green) or a plain undo (gray). */
-  --depart-blue: var(--brand-blue);
-  --depart-blue-dark: var(--brand-blue-dark);
+  /* Departed (a truck leaving the dock) — solid black, so it reads as a
+     distinct stage from Arrived (green) and Pending (red). */
+  --depart: var(--brand-black);
 
-  --radius: 14px;
+  --radius: 4px;
+  --font-body: 'Barlow', Arial, Helvetica, sans-serif;
+  --font-head: 'Barlow Semi Condensed', 'Arial Narrow', Arial, sans-serif;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -54,21 +56,15 @@
 html, body {
   margin: 0;
   padding: 0;
-  /* Richer fixed brand-color wash — closer to the demo's look, but kept
-     on a light base (not the demo's dark theme) so cards stay
-     high-contrast. Test on actual warehouse phones before wide
-     rollout — backdrop-filter blur elsewhere in this file is GPU-heavy,
-     and richer/larger gradients add to that cost on older Android. */
-  background:
-    radial-gradient(720px circle at 6% -6%, rgba(29,63,114,0.22), transparent 55%),
-    radial-gradient(720px circle at 100% -4%, rgba(122,31,43,0.22), transparent 55%),
-    radial-gradient(640px circle at 50% 100%, rgba(29,63,114,0.14), transparent 60%),
-    var(--bg);
-  background-attachment: fixed;
+  background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-body);
   -webkit-tap-highlight-color: transparent;
 }
+
+button, input, select, textarea { font: inherit; }
+
+:focus-visible { outline: 3px solid var(--brand-red); outline-offset: 2px; }
 
 body {
   min-height: 100dvh;
@@ -81,31 +77,20 @@ body {
   flex-direction: column;
   gap: 10px;
   padding: calc(14px + var(--safe-top)) 14px 12px;
-  background: rgba(29, 63, 114, 0.40);
-  backdrop-filter: blur(26px) saturate(180%);
-  -webkit-backdrop-filter: blur(26px) saturate(180%);
-  border-bottom: 1px solid rgba(255,255,255,0.14);
+  background: var(--brand-black);
+  border-bottom: 6px solid var(--brand-red);
   position: sticky;
   top: 0;
   z-index: 10;
 }
 
-/* Browsers without backdrop-filter support (very old Android/Firefox)
-   fall back to the original solid navy so the header stays readable. */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .topbar {
-    background: var(--brand-navy);
-  }
-}
-
 .topbar-title h1 {
-  font-size: 17px;
+  font-family: var(--font-head);
+  font-size: 24px;
   margin: 0;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.2px;
   color: #fff;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.45);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -120,36 +105,33 @@ body {
 }
 
 .user-greeting {
-  font-size: 11px;
-  color: rgba(255,255,255,0.9);
-  font-weight: 700;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  font-size: 13px;
+  color: #CFCFCF;
+  font-weight: 600;
 }
 
 .user-greeting::after {
   content: '·';
   margin-left: 8px;
-  color: rgba(255,255,255,0.5);
+  color: #8A8A8A;
   font-weight: 400;
 }
 
 .user-greeting.hidden::after { content: none; }
 
 .last-updated {
-  font-size: 11px;
-  color: rgba(255,255,255,0.75);
-  text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  font-size: 13px;
+  color: #CFCFCF;
 }
 
 .weather-pill {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   color: #fff;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.4);
-  background: rgba(255,255,255,0.22);
-  border: 1px solid rgba(255,255,255,0.38);
+  background: none;
+  border: 1px solid #6A6A6A;
   border-radius: 999px;
-  padding: 2px 9px;
+  padding: 2px 10px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -163,13 +145,12 @@ body {
 }
 
 .icon-btn {
-  background: rgba(255,255,255,0.20);
-  border: 1px solid rgba(255,255,255,0.45);
+  background: none;
+  border: 1px solid #6A6A6A;
   color: #fff;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -180,16 +161,18 @@ body {
 .icon-btn.hidden { display: none; }
 
 .icon-btn:active {
-  background: rgba(255,255,255,0.34);
+  border-color: #fff;
+  background: rgba(255,255,255,0.14);
 }
 
+/* Underline tabs, like the inventory app's Inventory / Transactions tabs */
 .tabs {
   display: flex;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 4px;
+  padding: 0 8px;
   overflow-x: auto;
   background: #ffffff;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
   position: sticky;
   top: var(--topbar-h, 70px);
   z-index: 9;
@@ -200,20 +183,21 @@ body {
 
 .tab-btn {
   flex: 0 0 auto;
-  padding: 9px 16px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text-dim);
-  font-size: 13.5px;
-  font-weight: 700;
+  padding: 12px 14px 8px;
+  border: 0;
+  border-bottom: 4px solid transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 17px;
+  font-weight: 600;
   white-space: nowrap;
 }
 
 .tab-btn.active {
-  background: var(--brand-maroon);
-  border-color: var(--brand-maroon);
-  color: #fff;
+  background: none;
+  border-bottom-color: var(--brand-red);
+  color: var(--brand-black);
 }
 
 .date-bar {
@@ -222,7 +206,7 @@ body {
   gap: 8px;
   padding: 10px 12px;
   background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
   position: sticky;
   top: calc(var(--topbar-h, 70px) + var(--tabs-h, 56px));
   z-index: 8;
@@ -240,43 +224,41 @@ body {
 
 .date-chip {
   flex: 0 0 auto;
-  padding: 7px 13px;
+  padding: 7px 14px;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text-dim);
-  font-size: 12.5px;
-  font-weight: 700;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
   white-space: nowrap;
 }
 
 .date-chip.active {
-  background: var(--brand-navy);
-  border-color: var(--brand-navy);
+  background: var(--brand-black);
+  border-color: var(--brand-black);
   color: #fff;
 }
 
 .date-picker-wrap {
   flex: 0 0 auto;
   position: relative;
-  width: 38px;
-  height: 34px;
+  width: 40px;
+  height: 36px;
 }
 
-/* A plain native date input reads as an empty colored box, especially
-   on mobile — this draws an unmistakable calendar icon on top of it
-   (the input stays functional and underneath, just with its own text
-   and native icon hidden) so new users can tell it's tappable.
-   Must be ::after, not ::before — ::before paints BEHIND the <input>
-   that follows it in the markup, so the icon was getting fully
-   covered by the input's own background and never actually visible. */
-.date-picker-wrap::after {
+/* A plain native date input reads as an empty white box, especially on
+   mobile — this draws an unmistakable calendar icon on top of it (the
+   input stays functional and underneath, just with its own text and
+   native icon hidden) so new users can tell it's tappable. */
+.date-picker-wrap::before {
   content: '';
   position: absolute;
   inset: 0;
   margin: auto;
   width: 18px;
   height: 18px;
+  z-index: 1;
   pointer-events: none;
   background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23ffffff' d='M7 2v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zM5 10h14v10H5V10z'/%3E%3C/svg%3E");
 }
@@ -288,9 +270,9 @@ body {
   height: 100%;
   padding: 0;
   margin: 0;
-  border-radius: 8px;
-  border: 1px solid var(--brand-maroon-dark);
-  background: var(--brand-maroon);
+  border-radius: 4px;
+  border: 1px solid var(--brand-red-dark);
+  background: var(--brand-red);
   color: transparent;
   cursor: pointer;
   -webkit-appearance: none;
@@ -313,37 +295,37 @@ body {
   justify-content: space-between;
   padding: 8px 14px;
   background: #fff;
-  border-bottom: 1px solid var(--border);
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--text-dim);
+  border-bottom: 1px solid var(--line);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
 }
 
 .progress-bar .progress-track {
   flex: 1;
-  height: 6px;
-  background: var(--border);
-  border-radius: 999px;
+  height: 8px;
+  background: var(--wash);
+  border: 1px solid var(--line);
+  border-radius: 2px;
   margin: 0 10px;
   overflow: hidden;
 }
 
 .progress-bar .progress-fill {
   height: 100%;
-  background: var(--brand-navy);
-  border-radius: 999px;
+  background: var(--brand-red);
   transition: width 0.3s ease;
 }
 
 .status-pill.late {
-  background: linear-gradient(135deg, #dc2626, #991b1b);
+  background: var(--brand-red-dark);
   color: #fff;
   animation: pulse-late 2s ease-in-out infinite;
 }
 
 @keyframes pulse-late {
-  0%, 100% { box-shadow: 0 1px 3px rgba(220,38,38,0.3); }
-  50% { box-shadow: 0 0 0 5px rgba(220,38,38,0.25); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(196,18,48,0.0); }
+  50% { box-shadow: 0 0 0 5px rgba(196,18,48,0.30); }
 }
 
 .toast.offline {
@@ -363,22 +345,24 @@ body {
   text-align: center;
   color: var(--text-dim);
   padding: 60px 20px;
-  font-size: 14px;
+  font-size: 16px;
 }
 
+/* Cards pick up the inventory app's "totals" strip: thin outline plus a
+   heavy colored left edge. */
 .load-card {
   background: var(--bg-card);
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--brand-black);
   border-radius: var(--radius);
   padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
 }
 
 .load-card.arrived {
-  border-color: rgba(31, 138, 99, 0.35);
+  border-left-color: var(--green);
 }
 
 .load-card-top {
@@ -389,38 +373,37 @@ body {
 }
 
 .load-time {
-  font-size: 22px;
-  font-weight: 800;
+  font-family: var(--font-head);
+  font-size: 28px;
+  font-weight: 700;
   line-height: 1;
-  color: var(--text);
+  color: var(--brand-black);
 }
 
 .load-date {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-dim);
   margin-top: 3px;
 }
 
 .status-pill {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   padding: 5px 10px;
-  border-radius: 999px;
+  border-radius: 4px;
   white-space: nowrap;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 
 .status-pill.arrived {
-  background: linear-gradient(135deg, var(--green), var(--green-dark));
+  background: var(--green);
   color: #fff;
-  box-shadow: 0 2px 6px rgba(31, 138, 99, 0.35);
 }
 
 .status-pill.pending {
-  background: linear-gradient(135deg, var(--brand-maroon), var(--brand-maroon-dark));
+  background: var(--brand-red);
   color: #fff;
-  box-shadow: 0 2px 6px rgba(122,31,43,0.35);
 }
 
 /* Broker-reported reschedule/delay/cancel flags (see broker.html) — made
@@ -428,10 +411,10 @@ body {
    mistaken for an ordinary Pending/Late status on a busy list, in
    either app. */
 .change-badge {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: 4px;
   white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -461,12 +444,12 @@ body {
 }
 
 .change-detail {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 800;
   color: #fff;
   background: linear-gradient(135deg, var(--flag-purple), var(--flag-purple-dark));
   border-left: 5px solid var(--flag-purple-dark);
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 9px 12px;
   box-shadow: 0 2px 8px rgba(124, 58, 237, 0.35);
 }
@@ -480,56 +463,21 @@ body {
 /* Optional dock assignment, shown once a load is arrived */
 .dock-chip {
   align-self: flex-start;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--text-dim);
-  background: var(--bg);
-  border: 1px solid var(--border);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 3px 10px;
+  padding: 3px 11px;
 }
 
-/* Departed timestamp — reuses .dock-chip's shape, tinted blue to match
-   the Mark Departed button */
+/* Departed timestamp — same chip shape, inverted black so it matches the
+   Mark Departed button */
 .departed-chip.dock-chip {
-  color: var(--depart-blue-dark);
-  background: #eaf1ff;
-  border-color: #c7d7fb;
-}
-
-/* Module Type — warehouse asked for this to stand out on the main
-   card (not just the detail sheet), since it drives which dock a
-   load gets assigned to. Deliberately solid navy, not a soft chip
-   like the others, so it reads at a glance while scanning a long
-   list — and deliberately NOT green/maroon/amber so it's never
-   mistaken for a status indicator. Full width so long module codes
-   wrap instead of truncating. */
-.module-type-badge {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 7px 10px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--brand-navy), var(--brand-navy-dark));
-  box-shadow: 0 2px 8px rgba(29, 63, 114, 0.35);
-}
-
-.module-type-badge .label {
-  flex: 0 0 auto;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.72);
-}
-
-.module-type-badge .value {
-  font-size: 13.5px;
-  font-weight: 800;
   color: #fff;
-  word-break: break-all;
-  line-height: 1.25;
+  background: var(--brand-black);
+  border-color: var(--brand-black);
 }
 
 /* Per-load message thread */
@@ -541,30 +489,30 @@ body {
 }
 
 .message-chip {
-  background: var(--brand-blue);
-  border: none;
+  background: #fff;
+  border: 2px solid var(--brand-black);
   border-radius: 999px;
-  padding: 5px 11px;
-  font-size: 12.5px;
-  font-weight: 700;
+  padding: 4px 11px;
+  font-size: 14px;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: #fff;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+  color: var(--brand-black);
 }
 
 .message-chip:active {
-  background: var(--brand-blue-dark);
+  background: var(--brand-black);
+  color: #fff;
 }
 
 .message-chip span {
-  background: var(--brand-blue-dark);
+  background: var(--brand-red);
   color: #fff;
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 700;
   border-radius: 999px;
-  padding: 1px 6px;
+  padding: 1px 7px;
 }
 
 .messages-list {
@@ -578,25 +526,25 @@ body {
 
 .message-bubble {
   max-width: 85%;
-  border-radius: 12px;
+  border-radius: 4px;
   padding: 8px 12px;
-  font-size: 13.5px;
+  font-size: 16px;
 }
 
 .message-bubble.from-staff {
   align-self: flex-start;
-  background: var(--bg);
-  border: 1px solid var(--border);
+  background: var(--wash);
+  border: 1px solid var(--line);
 }
 
 .message-bubble.from-broker {
   align-self: flex-end;
   background: var(--green-bg);
-  border: 1px solid rgba(31, 138, 99, 0.25);
+  border: 1px solid rgba(26, 127, 55, 0.25);
 }
 
 .message-meta {
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-dim);
   margin-bottom: 2px;
@@ -611,7 +559,7 @@ body {
 }
 
 .message-text a {
-  color: var(--brand-maroon);
+  color: var(--brand-red-dark);
   font-weight: 700;
   text-decoration: underline;
 }
@@ -625,8 +573,8 @@ body {
 .message-compose input {
   flex: 1;
   padding: 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
+  border-radius: 4px;
+  border: 2px solid var(--brand-black);
   background: #fff;
   color: var(--text);
   font-size: 16px;
@@ -638,9 +586,9 @@ body {
 }
 
 .load-bol {
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 700;
-  color: var(--brand-maroon);
+  color: var(--brand-red-dark);
 }
 
 /* Customer's "Delivery Location Reference (if Multiple)" — only shown
@@ -649,13 +597,13 @@ body {
 .location-ref-chip {
   display: inline-block;
   margin-left: 8px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-dim);
-  background: var(--bg);
-  border: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--wash);
+  border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 2px 9px;
+  padding: 2px 10px;
   vertical-align: middle;
 }
 
@@ -663,7 +611,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 14px;
-  font-size: 13px;
+  font-size: 16px;
   color: var(--text-dim);
 }
 
@@ -673,11 +621,11 @@ body {
 }
 
 .load-notes {
-  font-size: 12.5px;
+  font-size: 15px;
   color: var(--amber);
   background: var(--amber-bg);
   padding: 6px 10px;
-  border-radius: 8px;
+  border-radius: 4px;
 }
 
 .load-actions {
@@ -686,54 +634,61 @@ body {
   margin-top: 4px;
 }
 
+/* iPhone: without this, Safari waits to see if a tap is a double-tap-zoom
+   and can swallow quick or slightly off-center taps. */
+button, .btn, .tab-btn, .date-chip, .icon-btn, .message-chip {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .btn {
   flex: 1;
+  min-height: 48px;
   padding: 12px 14px;
-  border-radius: 14px;
-  border: none;
-  font-size: 14px;
-  font-weight: 700;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .btn-arrive {
-  background: linear-gradient(135deg, var(--green), var(--green-dark));
+  background: var(--green);
+  border-color: var(--green);
   color: #fff;
-  box-shadow: 0 4px 12px rgba(31, 138, 99, 0.35);
 }
 
 .btn-unarrive {
-  background: #ffffff;
-  border: none;
-  color: var(--text-dim);
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+  background: #fff;
+  border-color: var(--brand-black);
+  color: var(--brand-black);
 }
 
 .btn-depart {
-  background: linear-gradient(135deg, var(--brand-blue), var(--brand-blue-dark));
+  background: var(--brand-black);
+  border-color: var(--brand-black);
   color: #fff;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--brand-maroon), var(--brand-maroon-dark));
+  background: var(--brand-red);
+  border-color: var(--brand-red);
   color: #fff;
-  box-shadow: 0 4px 12px rgba(122, 31, 43, 0.35);
 }
 
+.btn-primary:active { background: var(--brand-red-dark); border-color: var(--brand-red-dark); }
+
 .btn-secondary {
-  background: #ffffff;
-  border: none;
-  color: var(--text);
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+  background: #fff;
+  border-color: var(--brand-black);
+  color: var(--brand-black);
 }
 
 /* Bottom sheet (load detail) */
 .sheet-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(13, 21, 36, 0.45);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  background: rgba(0,0,0,0.5);
   display: flex;
   align-items: flex-end;
   z-index: 20;
@@ -742,49 +697,41 @@ body {
 .sheet-overlay.hidden { display: none; }
 
 .sheet {
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(26px) saturate(180%);
-  -webkit-backdrop-filter: blur(26px) saturate(180%);
+  background: var(--bg-elevated);
   width: 100%;
-  border-radius: 18px 18px 0 0;
+  border-radius: 8px 8px 0 0;
+  border-top: 6px solid var(--brand-red);
   padding: 10px 18px calc(20px + var(--safe-bottom));
   max-height: 80vh;
   overflow-y: auto;
-  border-top: 1px solid rgba(255,255,255,0.6);
-  box-shadow: 0 -8px 30px rgba(0,0,0,0.18);
-}
-
-/* Fallback for browsers without backdrop-filter — solid panel, no blur */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .sheet-overlay { background: rgba(0,0,0,0.5); }
-  .sheet { background: var(--bg-elevated); }
 }
 
 .sheet-handle {
   width: 40px;
   height: 4px;
-  background: var(--border);
+  background: var(--line);
   border-radius: 4px;
   margin: 6px auto 14px;
 }
 
 .sheet h2 {
+  font-family: var(--font-head);
   margin: 0 0 4px;
-  font-size: 20px;
-  color: var(--text);
+  font-size: 24px;
+  color: var(--brand-black);
 }
 
 .sheet-hint {
   margin: 0 0 12px;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-dim);
 }
 
 .modal-like-input {
   width: 100%;
   padding: 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
+  border-radius: 4px;
+  border: 2px solid var(--brand-black);
   background: #fff;
   color: var(--text);
   font-size: 16px;
@@ -800,8 +747,8 @@ body {
 }
 
 .search-result {
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
@@ -811,28 +758,28 @@ body {
 .search-result-top {
   display: flex;
   justify-content: space-between;
-  font-size: 14px;
+  font-size: 17px;
   font-weight: 700;
-  color: var(--brand-maroon);
+  color: var(--brand-red-dark);
 }
 
 .search-result-meta {
-  font-size: 12.5px;
+  font-size: 15px;
   color: var(--text-dim);
 }
 
 .search-result-status {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
 .search-result-status.arrived { color: var(--green); }
-.search-result-status.pending { color: var(--brand-maroon); }
+.search-result-status.pending { color: var(--brand-red-dark); }
 
 .search-empty {
   text-align: center;
   color: var(--text-dim);
-  font-size: 13.5px;
+  font-size: 16px;
   padding: 20px 0;
 }
 
@@ -848,30 +795,32 @@ body {
 
 .admin-tabs {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
 }
 
 .admin-tab {
   flex: 1;
-  padding: 9px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text-dim);
-  font-size: 13.5px;
-  font-weight: 700;
+  padding: 10px 9px 6px;
+  border: 0;
+  border-bottom: 4px solid transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .admin-tab.active {
-  background: var(--brand-navy);
-  border-color: var(--brand-navy);
-  color: #fff;
+  background: none;
+  border-bottom-color: var(--brand-red);
+  color: var(--brand-black);
 }
 
 .history-row {
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
@@ -881,16 +830,16 @@ body {
 .history-row-top {
   display: flex;
   justify-content: space-between;
-  font-size: 13.5px;
+  font-size: 16px;
   font-weight: 700;
 }
 
 .history-row-top .status-arrived { color: var(--green); }
 .history-row-top .status-unarrived { color: var(--text-dim); }
-.history-row-top .status-departed { color: var(--depart-blue); }
+.history-row-top .status-departed { color: var(--brand-black); }
 
 .history-row-meta {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-dim);
 }
 
@@ -899,13 +848,14 @@ body {
 }
 
 .history-row-actions .btn {
+  min-height: 40px;
   padding: 8px 12px;
-  font-size: 12.5px;
+  font-size: 15px;
 }
 
 .staff-row {
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
   padding: 10px 12px;
   display: flex;
   align-items: center;
@@ -919,12 +869,12 @@ body {
 
 .staff-row-name {
   font-weight: 700;
-  font-size: 14px;
-  color: var(--text);
+  font-size: 17px;
+  color: var(--brand-black);
 }
 
 .staff-row-role {
-  font-size: 11.5px;
+  font-size: 13px;
   color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -932,12 +882,12 @@ body {
 
 .staff-row-edit {
   padding: 7px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
-  font-size: 12.5px;
-  font-weight: 700;
+  border-radius: 4px;
+  border: 2px solid var(--brand-black);
+  background: #fff;
+  color: var(--brand-black);
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .add-staff-btn {
@@ -949,7 +899,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13.5px;
+  font-size: 16px;
   color: var(--text);
   margin-bottom: 10px;
 }
@@ -963,8 +913,8 @@ body {
   display: flex;
   justify-content: space-between;
   padding: 9px 0;
-  border-bottom: 1px solid var(--border);
-  font-size: 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 16px;
   gap: 12px;
 }
 
@@ -982,20 +932,19 @@ body {
   width: 100%;
   margin-top: 16px;
   padding: 13px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
-  font-weight: 700;
+  border-radius: 4px;
+  border: 2px solid var(--brand-black);
+  background: #fff;
+  color: var(--brand-black);
+  font-weight: 600;
+  font-size: 17px;
 }
 
 /* Sign-in / staff-edit modal */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(13, 21, 36, 0.55);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  background: rgba(0,0,0,0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1006,34 +955,27 @@ body {
 .modal-overlay.hidden { display: none; }
 
 .modal {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(26px) saturate(180%);
-  -webkit-backdrop-filter: blur(26px) saturate(180%);
-  border: 1px solid rgba(255,255,255,0.5);
+  background: var(--bg-elevated);
   border-radius: var(--radius);
+  border-top: 6px solid var(--brand-red);
   padding: 20px;
   width: 100%;
-  max-width: 320px;
+  max-width: 340px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.25);
 }
 
-/* Fallback for browsers without backdrop-filter — solid panel, no blur */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .modal-overlay { background: rgba(0,0,0,0.6); }
-  .modal { background: var(--bg-elevated); border: none; }
-}
-
 .modal h3 {
+  font-family: var(--font-head);
   margin: 0 0 14px;
-  font-size: 16px;
-  color: var(--text);
+  font-size: 22px;
+  color: var(--brand-black);
 }
 
 .modal input {
   width: 100%;
   padding: 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
+  border-radius: 4px;
+  border: 2px solid var(--brand-black);
   background: #fff;
   color: var(--text);
   font-size: 16px;
@@ -1041,8 +983,9 @@ body {
 }
 
 .modal-error {
-  color: var(--brand-maroon);
-  font-size: 12.5px;
+  color: var(--brand-red-dark);
+  font-size: 15px;
+  font-weight: 600;
   margin-bottom: 8px;
 }
 
@@ -1060,12 +1003,13 @@ body {
   bottom: calc(20px + var(--safe-bottom));
   left: 50%;
   transform: translateX(-50%);
-  background: var(--brand-navy);
-  border: 1px solid var(--brand-navy-dark);
+  background: var(--brand-black);
+  border: 1px solid var(--brand-black);
+  border-left: 6px solid var(--brand-red);
   color: #fff;
   padding: 12px 18px;
-  border-radius: 10px;
-  font-size: 13.5px;
+  border-radius: 4px;
+  font-size: 16px;
   z-index: 40;
   box-shadow: 0 6px 20px rgba(0,0,0,0.3);
 }

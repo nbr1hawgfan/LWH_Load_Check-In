@@ -143,7 +143,7 @@ renderDateBar();
 flushQueue().then(() => loadData(false));
 loadWeather();
 updateStickyOffsets();
-setInterval(() => loadData(false), AUTO_REFRESH_MS);
+setInterval(() => { if (!document.hidden) loadData(false); }, AUTO_REFRESH_MS);
 setInterval(loadWeather, WEATHER_REFRESH_MS);
 
 if ('serviceWorker' in navigator) {
@@ -320,7 +320,29 @@ async function runGatedAction(action) {
   await performAction(action, auth);
 }
 
+const CHECKIN_ACTIONS = ['markArrived', 'unmarkArrived', 'markDeparted', 'unmarkDeparted'];
+
 async function performAction(action, auth) {
+  const isCheckin = CHECKIN_ACTIONS.indexOf(action.type) > -1;
+
+  // Check-ins are the high-volume taps, and the server round trip plus a
+  // full reload of every load can take several seconds on a big day. So
+  // update the screen and confirm the tap immediately, then let the server
+  // catch up in the background. If the server rejects it, loadData below
+  // puts the screen back to whatever the server says is true.
+  if (isCheckin) {
+    closeSheet();
+    applyOptimisticUpdate(action, auth);
+    const toastText = {
+      markArrived: 'Marked arrived',
+      unmarkArrived: 'Arrival undone',
+      markDeparted: 'Marked departed',
+      unmarkDeparted: 'Departure undone'
+    }[action.type];
+    showToast(toastText, false);
+    if (action.type === 'markArrived' || action.type === 'markDeparted') vibrate();
+  }
+
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
@@ -341,34 +363,30 @@ async function performAction(action, auth) {
       } else {
         showToast(json.error || 'Action failed', false);
       }
+      // The screen was already updated optimistically — undo that by
+      // reloading the server's real state.
+      if (isCheckin) loadData(false);
       return null;
     }
 
-    if (action.type !== 'sendMessage') closeSheet();
+    if (!isCheckin && action.type !== 'sendMessage') closeSheet();
     if (action.type === 'sendReport') {
       showToast('Report sent', false);
-    } else if (action.type === 'markArrived' || action.type === 'unmarkArrived') {
-      showToast(action.type === 'markArrived' ? 'Marked arrived' : 'Arrival undone', false);
-      if (action.type === 'markArrived') vibrate();
-      await loadData(false);
-    } else if (action.type === 'markDeparted' || action.type === 'unmarkDeparted') {
-      showToast(action.type === 'markDeparted' ? 'Marked departed' : 'Departure undone', false);
-      if (action.type === 'markDeparted') vibrate();
-      await loadData(false);
+    } else if (isCheckin) {
+      // Quiet background reconcile (picks up the server's exact timestamp
+      // and anyone else's changes) — not awaited, so taps never wait on it.
+      loadData(false);
     }
     return json;
   } catch (err) {
     // Likely offline (spotty dock wifi). For check-in actions, queue it
-    // and update the screen optimistically so the warehouse team isn't blocked;
-    // it'll sync automatically once the connection comes back. Admin
-    // actions (staff/history) just fail with a clear message instead —
-    // those aren't worth the complexity of queuing.
-    if (action.type === 'markArrived' || action.type === 'unmarkArrived' ||
-        action.type === 'markDeparted' || action.type === 'unmarkDeparted') {
+    // (the screen is already updated, above) so the warehouse team isn't
+    // blocked; it'll sync automatically once the connection comes back.
+    // Admin actions (staff/history) just fail with a clear message
+    // instead — those aren't worth the complexity of queuing.
+    if (isCheckin) {
       queueAction(action, auth);
-      applyOptimisticUpdate(action, auth);
       showToast('Saved offline — will sync automatically', true);
-      if (action.type === 'markArrived' || action.type === 'markDeparted') vibrate();
     } else {
       showToast('Network error — try again', false);
     }
@@ -382,6 +400,9 @@ function vibrate() {
 
 function applyOptimisticUpdate(action, auth) {
   const { location, bol } = action.payload;
+  // Local state no longer matches the server's last answer, so the next
+  // loadData must redraw even if the server's data looks "unchanged".
+  lastDataSignature = '';
   state.locations.forEach((locGroup) => {
     if (locGroup.location !== location) return;
     locGroup.loads.forEach((load) => {
@@ -637,6 +658,22 @@ function checkOverdueNotifications() {
 }
 
 // ---------- DATA LOADING ----------
+// True while a finger is down on the screen. Re-rendering the list under a
+// finger swaps out the very button being pressed, so iOS drops the tap —
+// that's the "I have to hit the button exactly" problem. Renders wait.
+let fingerDown = false;
+let lastDataSignature = '';
+document.addEventListener('pointerdown', () => { fingerDown = true; }, { passive: true });
+['pointerup', 'pointercancel'].forEach((evt) => {
+  document.addEventListener(evt, () => { setTimeout(() => { fingerDown = false; }, 350); }, { passive: true });
+});
+
+async function waitForFingerUp() {
+  for (let i = 0; i < 20 && fingerDown; i++) {
+    await new Promise((r) => setTimeout(r, 150));
+  }
+}
+
 async function loadData(isManualRefresh) {
   try {
     const url = API_URL + '?action=data&date=' + encodeURIComponent(state.selectedDate);
@@ -644,13 +681,22 @@ async function loadData(isManualRefresh) {
     const json = await res.json();
     if (!json.ok) throw new Error(json.error || 'Failed to load data');
 
-    state.locations = json.locations;
-    if (!state.activeLocation && state.locations.length > 0) {
-      state.activeLocation = state.locations[0].location;
-    }
+    // Nothing changed since the last load (the common case on the 2-minute
+    // auto-refresh) — skip rebuilding hundreds of cards for no reason.
+    const signature = state.selectedDate + '|' + JSON.stringify(json.locations);
+    const unchanged = signature === lastDataSignature;
+    lastDataSignature = signature;
 
-    renderTabs();
-    renderLoadList();
+    if (!unchanged) {
+      await waitForFingerUp();
+      state.locations = json.locations;
+      if (!state.activeLocation && state.locations.length > 0) {
+        state.activeLocation = state.locations[0].location;
+      }
+
+      renderTabs();
+      renderLoadList();
+    }
     checkOverdueNotifications();
 
     const queueCount = getQueue().length;
@@ -832,16 +878,6 @@ function renderLoadCard(load) {
 
   card.appendChild(top);
   card.appendChild(bol);
-
-  if (load.moduleType) {
-    const moduleTypeBadge = document.createElement('div');
-    moduleTypeBadge.className = 'module-type-badge';
-    moduleTypeBadge.innerHTML =
-      '<span class="label">Module Type</span>' +
-      '<span class="value">' + escapeHtml(load.moduleType) + '</span>';
-    card.appendChild(moduleTypeBadge);
-  }
-
   card.appendChild(meta);
 
   if (load.change) {

@@ -3,18 +3,19 @@
    rules it never uses. */
 
 .broker-banner {
-  background: #fff8e6;
-  border-bottom: 1px solid var(--border);
-  color: #7a5b00;
-  font-size: 12.5px;
+  background: var(--wash);
+  border-bottom: 1px solid var(--line);
+  border-left: 6px solid var(--brand-red);
+  color: var(--ink);
+  font-size: 15px;
   padding: 10px 14px;
   line-height: 1.4;
 }
 
 .field-label {
   display: block;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--text-dim);
   margin-bottom: 4px;
 }
@@ -29,29 +30,29 @@ textarea.modal-like-input {
 
 .load-actions.broker-actions .btn {
   padding: 10px 8px;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .btn-reschedule {
   background: var(--bg);
-  border: 1px solid var(--amber);
+  border: 2px solid var(--amber);
   color: var(--amber);
 }
 
 .btn-delay {
   background: var(--bg);
-  border: 1px solid var(--amber);
+  border: 2px solid var(--amber);
   color: var(--amber);
 }
 
 .btn-cancel {
   background: var(--bg);
-  border: 1px solid var(--brand-maroon);
-  color: var(--brand-maroon);
+  border: 2px solid var(--brand-red-dark);
+  color: var(--brand-red-dark);
 }
 
 .btn-clear {
   background: var(--bg);
-  border: 1px solid var(--border);
+  border: 2px solid var(--line);
   color: var(--text-dim);
 }
