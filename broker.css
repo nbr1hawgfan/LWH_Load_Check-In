@@ -34,25 +34,25 @@ textarea.modal-like-input {
 }
 
 .btn-reschedule {
-  background: var(--bg);
+  background: #fff;
   border: 2px solid var(--amber);
   color: var(--amber);
 }
 
 .btn-delay {
-  background: var(--bg);
+  background: #fff;
   border: 2px solid var(--amber);
   color: var(--amber);
 }
 
 .btn-cancel {
-  background: var(--bg);
+  background: #fff;
   border: 2px solid var(--brand-red-dark);
   color: var(--brand-red-dark);
 }
 
 .btn-clear {
-  background: var(--bg);
+  background: #fff;
   border: 2px solid var(--line);
   color: var(--text-dim);
 }

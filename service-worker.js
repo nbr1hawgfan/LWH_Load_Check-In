@@ -1,6 +1,6 @@
 // Bump this on every deploy that changes cached files — this is the
 // "cache busting" step people always forget with GAS + GitHub Pages PWAs.
-const CACHE_NAME = 'inbound-tracker-v25';
+const CACHE_NAME = 'inbound-tracker-v26';
 
 const APP_SHELL = [
   './',
@@ -10,6 +10,17 @@ const APP_SHELL = [
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  './icons/icon-maskable-512.png',
+  './icons/apple-touch-icon.png',
+  './icons/favicon.png',
+  './assets/img/logo.png',
+  './assets/fonts/oswald-latin-500-normal.woff2',
+  './assets/fonts/oswald-latin-600-normal.woff2',
+  './assets/fonts/oswald-latin-700-normal.woff2',
+  './assets/fonts/inter-latin-400-normal.woff2',
+  './assets/fonts/inter-latin-500-normal.woff2',
+  './assets/fonts/inter-latin-600-normal.woff2',
+  './assets/fonts/inter-latin-700-normal.woff2',
   './broker.html',
   './broker.css',
   './broker.js'

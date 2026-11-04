@@ -95,6 +95,12 @@ const messagesCloseBtn = document.getElementById('messagesCloseBtn');
 
 const toastEl = document.getElementById('toast');
 
+const printBtn = document.getElementById('printBtn');
+const printModal = document.getElementById('printModal');
+const printModalInfo = document.getElementById('printModalInfo');
+const printOpenBtn = document.getElementById('printOpenBtn');
+const printCloseBtn = document.getElementById('printCloseBtn');
+
 // ---------- INIT ----------
 refreshBtn.addEventListener('click', () => loadData(true));
 reportBtn.addEventListener('click', () => runGatedAction({ type: 'sendReport', payload: {} }));
@@ -102,6 +108,10 @@ userBtn.addEventListener('click', switchUser);
 searchBtn.addEventListener('click', openSearchSheet);
 adminBtn.addEventListener('click', openAdminSheet);
 receiptsBtn.addEventListener('click', () => window.open(RECEIPTS_FOLDER_URL, '_blank', 'noopener'));
+printBtn.addEventListener('click', requestPrintSheet);
+printOpenBtn.addEventListener('click', openPrintPdf);
+printCloseBtn.addEventListener('click', closePrintModal);
+printModal.addEventListener('click', (e) => { if (e.target === printModal) closePrintModal(); });
 datePickerEl.addEventListener('change', onDatePicked);
 notifyChipEl.addEventListener('click', toggleNotifications);
 
@@ -525,7 +535,9 @@ async function confirmSignIn() {
     const action = state.pendingAction;
     closeSignInModal();
 
-    if (action && action.type !== 'noop') {
+    if (action && action.type === 'printSheet') {
+      await fetchPrintSheet(auth);
+    } else if (action && action.type !== 'noop') {
       const result = await performAction(action, auth);
       if (action.type === 'sendMessage' && result && result.ok) {
         messageInput.value = '';
@@ -1406,6 +1418,86 @@ function debounce(fn, ms) {
     clearTimeout(timer);
     timer = setTimeout(() => fn(...args), ms);
   };
+}
+
+// ---------- PRINT CHECK-IN SHEET ----------
+// Same portrait clipboard PDF the 5:30 AM email sends (built by
+// PrintSheet.gs on the server), for whichever day is selected — "All"
+// prints today. Needs a signed-in PIN like the other write-ish actions.
+let printPdfUrl = null;
+let printPdfName = '';
+let printBusy = false;
+
+function requestPrintSheet() {
+  const auth = getAuth();
+  if (!auth) {
+    // Sign-in modal runs this action once the PIN checks out.
+    openSignInModal({ type: 'printSheet', payload: {} });
+    return;
+  }
+  fetchPrintSheet(auth);
+}
+
+async function fetchPrintSheet(auth) {
+  if (printBusy) return;
+  printBusy = true;
+  printBtn.disabled = true;
+  const date = state.selectedDate === 'ALL' ? toApiDateString(new Date()) : state.selectedDate;
+  showToast('Building check-in sheet…', false);
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'printSheet', authPin: auth.pin, date: date })
+    });
+    const json = await res.json();
+    if (!json.ok) {
+      if (json.error === 'Invalid PIN') {
+        clearAuth();
+        renderGreeting();
+        showToast('PIN no longer valid — please sign in again', false);
+        openSignInModal({ type: 'printSheet', payload: {} });
+      } else {
+        showToast(json.error || 'Could not build the sheet', false);
+      }
+      return;
+    }
+    if (!json.count) {
+      showToast('No loads scheduled for ' + date, false);
+      return;
+    }
+    const bytes = Uint8Array.from(atob(json.pdfBase64), (c) => c.charCodeAt(0));
+    if (printPdfUrl) URL.revokeObjectURL(printPdfUrl);
+    printPdfUrl = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    printPdfName = json.fileName || 'Inbound_CheckIn.pdf';
+    printModalInfo.textContent = date + ' — ' + json.count + ' load' + (json.count === 1 ? '' : 's') +
+      '. Opens the PDF; print it from there (portrait).';
+    toastEl.classList.add('hidden');
+    printModal.classList.remove('hidden');
+  } catch (err) {
+    showToast('Network error — try again', false);
+  } finally {
+    printBusy = false;
+    printBtn.disabled = false;
+  }
+}
+
+function openPrintPdf() {
+  if (!printPdfUrl) return;
+  const win = window.open(printPdfUrl, '_blank');
+  if (!win) {
+    // Pop-up blocked (some installed-app modes) — fall back to a download.
+    const a = document.createElement('a');
+    a.href = printPdfUrl;
+    a.download = printPdfName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+  closePrintModal();
+}
+
+function closePrintModal() {
+  printModal.classList.add('hidden');
 }
 
 // ---------- TOAST ----------
